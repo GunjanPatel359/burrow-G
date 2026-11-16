@@ -1,0 +1,3 @@
+{"type":"runtime-config","sessionId":"q1"}
+{"type":"user","cwd":"/tmp/q-proj","message":{"role":"user","content":"first prompt"}}
+{"type":"ai-title","sessionId":"q1","aiTitle":"Review phase two"}

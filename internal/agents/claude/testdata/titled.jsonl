@@ -1,0 +1,4 @@
+{"type":"mode","mode":"normal","sessionId":"aaa"}
+{"type":"user","cwd":"/tmp/proj-a","message":{"role":"user","content":"first prompt"}}
+{"type":"ai-title","aiTitle":"First title","sessionId":"aaa"}
+{"type":"ai-title","aiTitle":"Ignored later title","sessionId":"aaa"}

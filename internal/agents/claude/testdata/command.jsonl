@@ -1,0 +1,2 @@
+{"type":"user","isMeta":true,"cwd":"/tmp/cmd","message":{"role":"user","content":"<local-command-caveat>Caveat</local-command-caveat>"}}
+{"type":"user","cwd":"/tmp/cmd","message":{"role":"user","content":"<command-message>about</command-message>\n<command-name>/about</command-name>"}}

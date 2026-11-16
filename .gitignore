@@ -1,0 +1,13 @@
+# build output
+/bin/
+/dist/
+/npm/dist/
+/burrow-g
+
+# editors
+.idea/
+.vscode/
+
+# local planning notes (kept on disk, not published)
+.superpowers/
+docs/superpowers/

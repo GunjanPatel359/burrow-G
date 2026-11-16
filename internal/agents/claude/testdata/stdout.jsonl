@@ -1,0 +1,2 @@
+{"type":"user","cwd":"/tmp/out","message":{"role":"user","content":"<local-command-stdout>some output</local-command-stdout>"}}
+{"type":"user","cwd":"/tmp/out","message":{"role":"user","content":"what does this mean"}}

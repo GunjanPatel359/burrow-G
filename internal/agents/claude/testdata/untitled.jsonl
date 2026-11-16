@@ -1,0 +1,1 @@
+{"type":"user","cwd":"/tmp/proj-b","message":{"role":"user","content":[{"type":"tool_result","content":"x"},{"type":"text","text":"fix the\nlogin bug please"}]}}

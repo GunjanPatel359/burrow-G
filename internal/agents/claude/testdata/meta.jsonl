@@ -1,0 +1,2 @@
+{"type":"user","isMeta":true,"cwd":"/tmp/meta","message":{"role":"user","content":"<local-command-caveat>Caveat: ignore</local-command-caveat>"}}
+{"type":"user","cwd":"/tmp/meta","message":{"role":"user","content":"real question here"}}
