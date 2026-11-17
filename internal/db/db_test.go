@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -180,7 +181,11 @@ func TestFileURI(t *testing.T) {
 }
 
 func TestReadOnly_OpensOddFolderNames(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "my #1 ?% folder", "agent.db")
+	name := "my #1 ?% folder"
+	if runtime.GOOS == "windows" {
+		name = "my #1 % folder" // Windows doesn't allow ? in names
+	}
+	path := filepath.Join(t.TempDir(), name, "agent.db")
 	d, err := Open(path)
 	if err != nil {
 		t.Fatal(err)
