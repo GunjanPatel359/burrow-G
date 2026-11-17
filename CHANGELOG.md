@@ -11,12 +11,6 @@
   burrow-G uses root's home even if `HOME` still points at yours, so it never writes
   root-owned files into your home.
 
-### Changed
-
-- Bookmarks are stored in their own table. The index is upgraded automatically the first time
-  this version runs; after that, burrow-G 0.0.1 can't read it (deleting
-  `~/.local/share/burrow-g/sessions.db` makes 0.0.1 work again — the index rebuilds itself).
-
 ### Fixed
 
 - A refresh that finds no sessions (for example while a folder is missing) no longer empties

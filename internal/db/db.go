@@ -45,34 +45,7 @@ func Open(path string) (*DB, error) {
 		conn.Close()
 		return nil, err
 	}
-	if err := moveBookmarks(conn); err != nil {
-		conn.Close()
-		return nil, err
-	}
 	return &DB{sql: conn}, nil
-}
-
-// moveBookmarks moves bookmarks out of the sessions table, where burrow-G
-// 0.0.1 kept them, into the bookmarks table, then drops the old column.
-func moveBookmarks(conn *sql.DB) error {
-	var n int
-	err := conn.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name = 'bookmarked'`).Scan(&n)
-	if err != nil || n == 0 {
-		return err
-	}
-
-	tx, err := conn.Begin()
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback()
-	if _, err := tx.Exec(`INSERT OR IGNORE INTO bookmarks (agent, id) SELECT agent, id FROM sessions WHERE bookmarked = 1`); err != nil {
-		return err
-	}
-	if _, err := tx.Exec(`ALTER TABLE sessions DROP COLUMN bookmarked`); err != nil {
-		return err
-	}
-	return tx.Commit()
 }
 
 func (d *DB) Close() error {

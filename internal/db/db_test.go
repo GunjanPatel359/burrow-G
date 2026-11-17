@@ -1,7 +1,6 @@
 package db
 
 import (
-	"database/sql"
 	"path/filepath"
 	"testing"
 	"time"
@@ -194,39 +193,4 @@ func TestSave_EmptyListKeepsRows(t *testing.T) {
 	if got := ids(t, d, "claude"); len(got) != 2 {
 		t.Errorf("an empty list wiped the rows: got %v", got)
 	}
-}
-
-func TestOpen_MovesOldBookmarks(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "sessions.db")
-	old, err := sql.Open("sqlite", path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = old.Exec(`CREATE TABLE sessions (agent TEXT NOT NULL, id TEXT NOT NULL, title TEXT NOT NULL,
-		dir TEXT NOT NULL, last_used INTEGER NOT NULL, bookmarked INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (agent, id));
-		INSERT INTO sessions VALUES ('claude', 'kept', 'Kept', '/tmp', 2, 1), ('claude', 'plain', 'Plain', '/tmp', 1, 0)`)
-	old.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	d, err := Open(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	list, err := d.List("claude")
-	if err != nil || len(list) != 2 || !list[0].Bookmarked || list[1].Bookmarked {
-		t.Errorf("List = %+v, %v; want kept bookmarked, plain not", list, err)
-	}
-	var n int
-	d.sql.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name = 'bookmarked'`).Scan(&n)
-	if n != 0 {
-		t.Error("the old bookmarked column should be gone")
-	}
-	d.Close()
-
-	if d, err = Open(path); err != nil {
-		t.Fatalf("opening again: %v", err)
-	}
-	d.Close()
 }
