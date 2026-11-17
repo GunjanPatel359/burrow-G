@@ -38,6 +38,7 @@ Usage:
   burrow-g                 open the terminal UI
   burrow-g list            print every session (refreshes all agents)
   burrow-g resume <id>     resume a session by id or id prefix
+  burrow-g setup-sudo      let 'sudo burrow-g' work (once, asks for your password)
   burrow-g version         print the version
   burrow-g help            show this help
 

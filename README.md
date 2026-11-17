@@ -85,6 +85,7 @@ not supported yet (resuming relies on Unix `exec`).
 burrow-g                 open the terminal UI
 burrow-g list            print every session (refreshes all agents)
 burrow-g resume <id>     resume a session by id or id prefix
+burrow-g setup-sudo      let 'sudo burrow-g' work (once)
 burrow-g version         print the version
 burrow-g help            show help
 ```
@@ -103,6 +104,25 @@ burrow-g help            show help
 
 **New tabs** currently work in **GNOME Terminal**. In other terminals (and IDE terminals
 such as GoLand's), `enter` resumes in the current terminal instead.
+
+### Sessions started with sudo
+
+Agents run as root (for example from an IDE started with `sudo`) save their sessions in
+root's home (`/root/.claude`, …), which your normal user can't read. To see and resume
+them, run burrow-G as root:
+
+```sh
+burrow-g setup-sudo   # once, asks for your password
+sudo burrow-g
+```
+
+sudo only looks for programs in system folders, not in your PATH. `setup-sudo` puts a small
+script at `/usr/local/bin/burrow-g` that runs your burrow-G and adds your PATH (after the
+system folders), so the agent CLIs are found too. Run it again if burrow-G moves (for
+example after switching Node versions with nvm). It never overwrites a file it didn't make.
+
+Under sudo, burrow-G always uses root's home (even with `sudo -E`), keeps its own index
+there, and resumes in the same terminal instead of opening a new tab.
 
 ## How it works
 
