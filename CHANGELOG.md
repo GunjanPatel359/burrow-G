@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+
+- `burrow-g version` showed `dev` when installed with `go install`; it now shows the
+  real version.
+
 ## v0.0.1 — 2026-11-16
 
 First public preview.

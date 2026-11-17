@@ -108,3 +108,19 @@ func TestVersionString(t *testing.T) {
 		t.Errorf("versionString() = %q, want %q", got, "burrow-G dev")
 	}
 }
+
+func TestVersionFrom(t *testing.T) {
+	cases := []struct {
+		stamped, module, want string
+	}{
+		{"0.0.1", "", "burrow-G 0.0.1"},
+		{"dev", "v0.0.2", "burrow-G 0.0.2"},
+		{"dev", "(devel)", "burrow-G dev"},
+		{"dev", "", "burrow-G dev"},
+	}
+	for _, c := range cases {
+		if got := versionFrom(c.stamped, c.module); got != c.want {
+			t.Errorf("versionFrom(%q, %q) = %q, want %q", c.stamped, c.module, got, c.want)
+		}
+	}
+}
