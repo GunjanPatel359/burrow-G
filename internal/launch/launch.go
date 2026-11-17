@@ -1,10 +1,11 @@
 // Package launch opens a command in a new terminal tab.
-// Each supported terminal lives in its own file (gnome.go, …).
+// Each supported terminal lives in its own file (gnome.go, wt.go, …).
 package launch
 
 import (
 	"os"
 	"os/exec"
+	"runtime"
 )
 
 // Terminal can open a command in a new tab.
@@ -15,8 +16,15 @@ type Terminal interface {
 
 // Detect returns the terminal we are running in, or nil if it is not supported.
 func Detect(getenv func(string) string) Terminal {
+	return detect(runtime.GOOS, getenv)
+}
+
+func detect(goos string, getenv func(string) string) Terminal {
 	if getenv("TERMINAL_EMULATOR") != "" { // IDE terminals (GoLand: JetBrains-JediTerm)
 		return nil
+	}
+	if goos == "windows" && getenv("WT_SESSION") != "" {
+		return windowsTerminal{run: start, lookPath: exec.LookPath}
 	}
 	if getenv("GNOME_TERMINAL_SCREEN") != "" || getenv("GNOME_TERMINAL_SERVICE") != "" {
 		return gnome{run: start}

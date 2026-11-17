@@ -3,8 +3,10 @@ package db
 
 import (
 	"database/sql"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 
 	_ "modernc.org/sqlite"
 )
@@ -29,7 +31,7 @@ func Open(path string) (*DB, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err
 	}
-	conn, err := sql.Open("sqlite", path)
+	conn, err := sql.Open("sqlite", fileURI(path, filepath.Separator, ""))
 	if err != nil {
 		return nil, err
 	}
@@ -44,4 +46,19 @@ func Open(path string) (*DB, error) {
 
 func (d *DB) Close() error {
 	return d.sql.Close()
+}
+
+// ReadOnly returns a SQLite URI that opens path without ever writing to it.
+func ReadOnly(path string) string {
+	return fileURI(path, filepath.Separator, "mode=ro")
+}
+
+// fileURI turns a file path into a SQLite URI, so any folder name works.
+func fileURI(path string, sep rune, query string) string {
+	p := strings.ReplaceAll(path, string(sep), "/")
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p // C:/x → /C:/x
+	}
+	u := url.URL{Scheme: "file", Path: p, RawQuery: query}
+	return u.String()
 }

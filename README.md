@@ -53,6 +53,9 @@ of them — in the right folder, with the right command.
 | Copilot CLI | `~/.copilot/session-store.db` (read-only) | `copilot --resume <id>` |
 | Codex | `~/.codex/sessions/` | `codex resume <id>` |
 
+On Windows the same folders are under your user folder, for example
+`%USERPROFILE%\.claude\projects\`.
+
 Codex support follows Codex's documented session format but has not yet been tested
 against real Codex sessions — reports welcome.
 
@@ -73,11 +76,12 @@ go install github.com/GunjanPatel359/burrow-G/cmd/burrow-g@latest
 Make sure `$(go env GOPATH)/bin` is on your `PATH`.
 
 **Binary:** download the archive for your system from
-[Releases](https://github.com/GunjanPatel359/burrow-G/releases), unpack it and put
-`burrow-g` somewhere on your `PATH`.
+[Releases](https://github.com/GunjanPatel359/burrow-G/releases) (`.tar.gz` for Linux and
+macOS, `.zip` for Windows), unpack it and put `burrow-g` (`burrow-g.exe` on Windows)
+somewhere on your `PATH`.
 
-**Platforms:** Linux (tested). macOS builds and should work, but is untested. Windows is
-not supported yet (resuming relies on Unix `exec`).
+**Platforms:** Linux (tested). macOS and Windows build and should work, but are untested —
+reports welcome.
 
 ## Usage
 
@@ -101,17 +105,20 @@ burrow-g help            show help
 | `r` | refresh | refresh |
 | `q` / `ctrl+c` | quit | quit |
 
-**New tabs** currently work in **GNOME Terminal**. In other terminals (and IDE terminals
-such as GoLand's), `enter` resumes in the current terminal instead.
+**New tabs** currently work in **GNOME Terminal** and **Windows Terminal**. In other
+terminals (and IDE terminals such as GoLand's), `enter` resumes in the current terminal
+instead.
 
 ## How it works
 
 - Each agent has a small reader in `internal/agents/<agent>/` that turns its files into a
   common `Session` (agent, id, title, folder, last used).
-- burrow-G keeps an index in `~/.local/share/burrow-g/sessions.db` (SQLite). The UI shows that
-  index instantly and refreshes the selected agent in the background.
+- burrow-G keeps an index in `~/.local/share/burrow-g/sessions.db` (SQLite; on Windows
+  `%LOCALAPPDATA%\burrow-g\sessions.db`). The UI shows that index instantly and refreshes
+  the selected agent in the background.
 - Resuming changes into the session's folder and replaces burrow-G with the agent's own
-  command, so when you quit the agent you are back at your normal prompt.
+  command, so when you quit the agent you are back at your normal prompt. Windows can't
+  replace a running program, so there burrow-G runs the agent and exits when it does.
 - Nothing leaves your machine.
 
 ## Development
@@ -128,7 +135,7 @@ internal/
   session/             shared Session type, Source interface, resume
   agents/<agent>/      one reader per agent — add a new agent here
   db/                  burrow-G's own SQLite index
-  launch/              open a command in a new terminal tab (gnome.go, …)
+  launch/              open a command in a new terminal tab (gnome.go, wt.go, …)
   helpers/             small text/time/file helpers
   tui/                 Bubble Tea UI
     app.go layout.go keys.go messages.go commands.go

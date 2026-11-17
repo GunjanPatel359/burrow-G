@@ -2,7 +2,15 @@
 
 ## Unreleased
 
+### Added
+
+- Windows support: `.zip` builds for amd64 and arm64, `npm install -g burrow-g` on Windows,
+  data in `%LOCALAPPDATA%\burrow-g`, and `enter` opens a new tab in Windows Terminal.
+
 ### Fixed
+
+- Agent databases (OpenCode, Copilot) and burrow-G's own database now open from folders
+  whose names contain spaces, `#`, `?` or `%`.
 
 - `burrow-g version` showed `dev` when installed with `go install`; it now shows the
   real version.

@@ -47,7 +47,8 @@ In the UI:
   ←/esc    back to agents    /        search
   r        refresh           q        quit
 
-Data: ~/.local/share/burrow-g (agents' own files are only read, never changed)
+Data: ~/.local/share/burrow-g   (Windows: %LOCALAPPDATA%\burrow-g)
+      agents' own files are only read, never changed
 `
 
 func printUsage(w io.Writer) { fmt.Fprint(w, usage) }

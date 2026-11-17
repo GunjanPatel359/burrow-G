@@ -30,6 +30,8 @@ func TestShortPath(t *testing.T) {
 		{"/home/u", "/home/u", "~"},
 		{"/opt/x", "/home/u", "/opt/x"},
 		{"/home/user2/x", "/home/u", "/home/user2/x"},
+		{`C:\Users\u\proj`, `C:\Users\u`, `~\proj`},
+		{`C:\Users\u2\proj`, `C:\Users\u`, `C:\Users\u2\proj`},
 	}
 
 	for _, c := range cases {
