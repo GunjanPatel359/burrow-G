@@ -190,7 +190,8 @@ func (f *fakeTerminal) OpenTab(dir, title string, argv []string) error {
 
 func TestEnterOpensNewTabAndStaysOpen(t *testing.T) {
 	term := &fakeTerminal{}
-	m, _ := testModelWith(t, term, "/tmp")
+	dir := t.TempDir()
+	m, _ := testModelWith(t, term, dir)
 	m = deliver(m, m.Init())
 
 	m, _ = press(m, enter)
@@ -206,7 +207,7 @@ func TestEnterOpensNewTabAndStaysOpen(t *testing.T) {
 		m = next.(model)
 	}
 
-	if len(term.opened) != 1 || term.opened[0] != "/tmp|From files|claude --resume aaa" {
+	if len(term.opened) != 1 || term.opened[0] != dir+"|From files|claude --resume aaa" {
 		t.Errorf("opened = %q", term.opened)
 	}
 	if !strings.Contains(m.View(), "opened") {

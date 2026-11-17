@@ -96,7 +96,7 @@ func TestPickSession(t *testing.T) {
 func TestUsage(t *testing.T) {
 	var out bytes.Buffer
 	printUsage(&out)
-	for _, want := range []string{"burrow-G", "burrow-g list", "burrow-g resume <id>", "burrow-g version", "enter", "~/.local/share/burrow-g"} {
+	for _, want := range []string{"burrow-G", "burrow-g list", "burrow-g resume <id>", "burrow-g version", "enter", "~/.local/share/burrow-g", `%LOCALAPPDATA%\burrow-g`} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("usage is missing %q:\n%s", want, out.String())
 		}

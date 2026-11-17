@@ -8,6 +8,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/GunjanPatel359/burrow-G/internal/helpers"
@@ -78,7 +79,7 @@ func parseFile(path string) (title, cwd string, err error) {
 
 // customTitle reads <id>/custom-title.json, written by /rename.
 func customTitle(path string) string {
-	data, err := os.ReadFile(strings.TrimSuffix(path, ".jsonl") + "/custom-title.json")
+	data, err := os.ReadFile(filepath.Join(strings.TrimSuffix(path, ".jsonl"), "custom-title.json"))
 	if err != nil {
 		return ""
 	}

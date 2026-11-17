@@ -9,6 +9,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
+	"github.com/GunjanPatel359/burrow-G/internal/db"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
 
@@ -24,13 +25,13 @@ func (o Source) List() ([]session.Session, error) {
 		return nil, err
 	}
 
-	db, err := sql.Open("sqlite", "file:"+o.DBPath+"?mode=ro")
+	conn, err := sql.Open("sqlite", db.ReadOnly(o.DBPath))
 	if err != nil {
 		return nil, err
 	}
-	defer db.Close()
+	defer conn.Close()
 
-	rows, err := db.Query(`SELECT id, title, directory, time_updated FROM session WHERE parent_id IS NULL`)
+	rows, err := conn.Query(`SELECT id, title, directory, time_updated FROM session WHERE parent_id IS NULL`)
 	if err != nil {
 		return nil, err
 	}

@@ -1,7 +1,9 @@
 package db
 
 import (
+	"database/sql"
 	"path/filepath"
+	"runtime"
 	"testing"
 	"time"
 
@@ -162,5 +164,44 @@ func TestRefresh(t *testing.T) {
 	}
 	if got := ids(t, d, "claude"); len(got) != 1 || got[0] != "new" {
 		t.Errorf("got %v, want [new]", got)
+	}
+}
+
+func TestFileURI(t *testing.T) {
+	cases := map[string]string{
+		"/home/u/.copilot/session-store.db": "file:///home/u/.copilot/session-store.db?mode=ro",
+		"/home/u/my #1 ?%/x.db":             "file:///home/u/my%20%231%20%3F%25/x.db?mode=ro",
+		`C:\Users\u\.copilot\x.db`:          "file:///C:/Users/u/.copilot/x.db?mode=ro",
+	}
+	for path, want := range cases {
+		if got := fileURI(path, '\\', "mode=ro"); got != want {
+			t.Errorf("fileURI(%q)\n got %q\nwant %q", path, got, want)
+		}
+	}
+}
+
+func TestReadOnly_OpensOddFolderNames(t *testing.T) {
+	name := "my #1 ?% folder"
+	if runtime.GOOS == "windows" {
+		name = "my #1 % folder" // Windows doesn't allow ? in names
+	}
+	path := filepath.Join(t.TempDir(), name, "agent.db")
+	d, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.Close()
+
+	conn, err := sql.Open("sqlite", ReadOnly(path))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	if _, err := conn.Exec(`DELETE FROM sessions`); err == nil {
+		t.Error("write succeeded, want read-only")
+	}
+	var n int
+	if err := conn.QueryRow(`SELECT count(*) FROM sessions`).Scan(&n); err != nil {
+		t.Errorf("read: %v", err)
 	}
 }

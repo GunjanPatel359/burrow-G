@@ -18,8 +18,10 @@ func ShortPath(path, home string) string {
 	if path == home {
 		return "~"
 	}
-	if strings.HasPrefix(path, home+"/") {
-		return "~" + strings.TrimPrefix(path, home)
+	for _, sep := range []string{"/", `\`} {
+		if strings.HasPrefix(path, home+sep) {
+			return "~" + strings.TrimPrefix(path, home)
+		}
 	}
 	return path
 }

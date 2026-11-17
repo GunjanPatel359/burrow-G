@@ -7,6 +7,8 @@ const packages = {
   "linux arm64": "burrow-g-linux-arm64",
   "darwin x64": "burrow-g-darwin-x64",
   "darwin arm64": "burrow-g-darwin-arm64",
+  "win32 x64": "burrow-g-win32-x64",
+  "win32 arm64": "burrow-g-win32-arm64",
 };
 
 const pkg = packages[`${process.platform} ${process.arch}`];
@@ -17,7 +19,8 @@ if (!pkg) {
 
 let binary;
 try {
-  binary = require.resolve(`${pkg}/bin/burrow-g`);
+  const name = process.platform === "win32" ? "burrow-g.exe" : "burrow-g";
+  binary = require.resolve(`${pkg}/bin/${name}`);
 } catch {
   console.error(`burrow-g: ${pkg} is missing. Reinstall with: npm install -g burrow-g`);
   process.exit(1);

@@ -17,6 +17,8 @@ declare -A targets=(
   [linux-arm64]=linux_arm64
   [darwin-x64]=darwin_amd64
   [darwin-arm64]=darwin_arm64
+  [win32-x64]=windows_amd64
+  [win32-arm64]=windows_arm64
 )
 
 build() {
@@ -25,11 +27,17 @@ build() {
   for target in "${!targets[@]}"; do
     os=${target%-*}
     cpu=${target#*-}
-    archive=$root/dist/burrow-g_${version}_${targets[$target]}.tar.gz
+    name=burrow-g_${version}_${targets[$target]}
     dir=$out/burrow-g-$target
     mkdir -p "$dir/bin"
-    tar -xzf "$archive" -C "$dir/bin" --strip-components=1 "burrow-g_${version}_${targets[$target]}/burrow-g"
-    chmod 755 "$dir/bin/burrow-g"
+    if [[ $os == win32 ]]; then
+      bin=burrow-g.exe
+      unzip -qj "$root/dist/$name.zip" "$name/$bin" -d "$dir/bin"
+    else
+      bin=burrow-g
+      tar -xzf "$root/dist/$name.tar.gz" -C "$dir/bin" --strip-components=1 "$name/$bin"
+    fi
+    chmod 755 "$dir/bin/$bin"
     cp "$root/LICENSE" "$dir/"
     cat > "$dir/package.json" <<EOF
 {
@@ -40,7 +48,7 @@ build() {
   "repository": $repo,
   "os": ["$os"],
   "cpu": ["$cpu"],
-  "files": ["bin/burrow-g", "LICENSE"]
+  "files": ["bin/$bin", "LICENSE"]
 }
 EOF
   done
@@ -61,13 +69,15 @@ EOF
   "repository": $repo,
   "bin": { "burrow-g": "bin/burrow-g.js" },
   "files": ["bin/burrow-g.js", "README.md", "LICENSE"],
-  "os": ["linux", "darwin"],
+  "os": ["linux", "darwin", "win32"],
   "engines": { "node": ">=16" },
   "optionalDependencies": {
     "burrow-g-linux-x64": "$version",
     "burrow-g-linux-arm64": "$version",
     "burrow-g-darwin-x64": "$version",
-    "burrow-g-darwin-arm64": "$version"
+    "burrow-g-darwin-arm64": "$version",
+    "burrow-g-win32-x64": "$version",
+    "burrow-g-win32-arm64": "$version"
   }
 }
 EOF
