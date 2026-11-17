@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/user"
 	"path/filepath"
 	"time"
 
@@ -31,6 +32,11 @@ func main() {
 	case "version", "-v", "--version":
 		fmt.Println(versionString())
 		return
+	case "setup-sudo":
+		if err := runSetupSudo(); err != nil {
+			fail(err)
+		}
+		return
 	case "", "list":
 	case "resume":
 		if len(os.Args) < 3 {
@@ -43,9 +49,13 @@ func main() {
 		os.Exit(2)
 	}
 
-	home, err := os.UserHomeDir()
+	sudoUser := os.Getenv("SUDO_USER")
+	home, err := homeDir(sudoUser, user.Current, os.UserHomeDir)
 	if err != nil {
 		fail(err)
+	}
+	if sudoUser != "" {
+		os.Setenv("HOME", home) // agents we resume must use root's folders too
 	}
 
 	sources := []session.Source{
@@ -74,10 +84,14 @@ func main() {
 			fail(err)
 		}
 		store.Close()
-		fail(session.Resume(s, src.ResumeCommand(s)))
+		fail(sudoHint(session.Resume(s, src.ResumeCommand(s)), sudoUser))
 
 	default:
-		chosen, err := tui.Run(store, sources, home, launch.Detect(os.Getenv))
+		term := launch.Detect(os.Getenv)
+		if sudoUser != "" {
+			term = nil // a root terminal can't open tabs in the user's desktop
+		}
+		chosen, err := tui.Run(store, sources, home, term)
 		if err != nil {
 			fail(err)
 		}
@@ -89,7 +103,7 @@ func main() {
 			fail(err)
 		}
 		store.Close()
-		fail(session.Resume(*chosen, src.ResumeCommand(*chosen)))
+		fail(sudoHint(session.Resume(*chosen, src.ResumeCommand(*chosen)), sudoUser))
 	}
 }
 

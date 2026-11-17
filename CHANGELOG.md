@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Added
+
+- `sudo burrow-g` lists and resumes sessions that agents saved under root. Run
+  `burrow-g setup-sudo` once so sudo can find burrow-G and your agents. Under sudo,
+  burrow-G uses root's home even if `HOME` still points at yours, so it never writes
+  root-owned files into your home.
+
 ### Fixed
 
 - `burrow-g version` showed `dev` when installed with `go install`; it now shows the
