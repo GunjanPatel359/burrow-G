@@ -46,7 +46,8 @@ In the UI:
   ↑/↓      move              enter    open session (new tab, or here)
   →/tab    go to sessions    o        resume here
   ←/esc    back to agents    /        search
-  r        refresh           q        quit
+  b        bookmark (★)      r        refresh
+  q        quit
 
 Data: ~/.local/share/burrow-g (agents' own files are only read, never changed)
 `
