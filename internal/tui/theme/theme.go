@@ -22,6 +22,7 @@ type Theme struct {
 	OK       lipgloss.Style
 	Busy     lipgloss.Style
 	Error    lipgloss.Style
+	Root     lipgloss.Style
 }
 
 // Get returns the named theme, or the default one if the name is unknown.
@@ -44,6 +45,7 @@ func Get(name string) Theme {
 		OK:       s().Foreground(p.Success),
 		Busy:     s().Foreground(p.Warning),
 		Error:    s().Foreground(p.Error),
+		Root:     s().Foreground(p.Error).Bold(true),
 	}
 }
 

@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS sessions (
 	dir        TEXT NOT NULL,
 	last_used  INTEGER NOT NULL,
 	bookmarked INTEGER NOT NULL DEFAULT 0,
+	owner      TEXT NOT NULL DEFAULT '',
 	PRIMARY KEY (agent, id)
 );`
 
@@ -39,9 +40,24 @@ func Open(path string) (*DB, error) {
 		conn.Close()
 		return nil, err
 	}
+	if err := addOwner(conn); err != nil {
+		conn.Close()
+		return nil, err
+	}
 	return &DB{sql: conn}, nil
 }
 
 func (d *DB) Close() error {
 	return d.sql.Close()
+}
+
+// addOwner adds the owner column to databases made by burrow-G 0.0.1.
+func addOwner(conn *sql.DB) error {
+	var n int
+	err := conn.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name = 'owner'`).Scan(&n)
+	if err != nil || n > 0 {
+		return err
+	}
+	_, err = conn.Exec(`ALTER TABLE sessions ADD COLUMN owner TEXT NOT NULL DEFAULT ''`)
+	return err
 }

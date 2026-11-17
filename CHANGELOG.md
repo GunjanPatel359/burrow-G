@@ -4,7 +4,8 @@
 
 ### Added
 
-- `sudo burrow-g` lists and resumes sessions that agents saved under root. Run
+- `sudo burrow-g` lists root's sessions (tagged `root`) together with your own, and resumes
+  each as the user it belongs to. Run
   `burrow-g setup-sudo` once so sudo can find burrow-G and your agents. Under sudo,
   burrow-G uses root's home even if `HOME` still points at yours, so it never writes
   root-owned files into your home.

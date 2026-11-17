@@ -58,12 +58,18 @@ func main() {
 		os.Setenv("HOME", home) // agents we resume must use root's folders too
 	}
 
-	sources := []session.Source{
-		claude.Source{Home: filepath.Join(home, ".claude")},
-		qoder.Source{Home: filepath.Join(home, ".qoder")},
-		opencode.Source{DBPath: filepath.Join(home, ".local", "share", "opencode", "opencode.db")},
-		copilot.Source{DBPath: filepath.Join(home, ".copilot", "session-store.db")},
-		codex.Source{Home: filepath.Join(home, ".codex")},
+	sources := agentSources(home)
+	shownHome, me := home, ""
+	if sudoUser != "" {
+		// show the caller's own sessions next to root's
+		if caller, err := user.Lookup(sudoUser); err == nil && caller.HomeDir != home {
+			me = "root"
+			if u, err := user.Current(); err == nil {
+				me = u.Username
+			}
+			sources = mergeHomes(sources, agentSources(caller.HomeDir), me, sudoUser)
+			shownHome = caller.HomeDir
+		}
 	}
 
 	store, err := db.Open(filepath.Join(helpers.DataDir(home), "sessions.db"))
@@ -76,7 +82,7 @@ func main() {
 	case "list":
 		list := refreshAll(store, sources, os.Stderr)
 		session.Sort(list, func(s session.Session) bool { return s.Bookmarked })
-		printList(os.Stdout, list, home, time.Now())
+		printList(os.Stdout, list, shownHome, time.Now())
 
 	case "resume":
 		s, src, err := pickSession(store, sources, os.Args[2])
@@ -84,14 +90,15 @@ func main() {
 			fail(err)
 		}
 		store.Close()
-		fail(sudoHint(session.Resume(s, src.ResumeCommand(s)), sudoUser))
+		argv := asOwner(s, src.ResumeCommand(s), me, os.Getenv("PATH"))
+		fail(sudoHint(session.Resume(s, argv), sudoUser))
 
 	default:
 		term := launch.Detect(os.Getenv)
 		if sudoUser != "" {
 			term = nil // a root terminal can't open tabs in the user's desktop
 		}
-		chosen, err := tui.Run(store, sources, home, term)
+		chosen, err := tui.Run(store, sources, shownHome, term)
 		if err != nil {
 			fail(err)
 		}
@@ -103,7 +110,18 @@ func main() {
 			fail(err)
 		}
 		store.Close()
-		fail(sudoHint(session.Resume(*chosen, src.ResumeCommand(*chosen)), sudoUser))
+		argv := asOwner(*chosen, src.ResumeCommand(*chosen), me, os.Getenv("PATH"))
+		fail(sudoHint(session.Resume(*chosen, argv), sudoUser))
+	}
+}
+
+func agentSources(home string) []session.Source {
+	return []session.Source{
+		claude.Source{Home: filepath.Join(home, ".claude")},
+		qoder.Source{Home: filepath.Join(home, ".qoder")},
+		opencode.Source{DBPath: filepath.Join(home, ".local", "share", "opencode", "opencode.db")},
+		copilot.Source{DBPath: filepath.Join(home, ".copilot", "session-store.db")},
+		codex.Source{Home: filepath.Join(home, ".codex")},
 	}
 }
 

@@ -13,6 +13,7 @@ type Session struct {
 	Dir        string
 	LastUsed   time.Time
 	Bookmarked bool
+	Owner      string // whose home it is in; only set when running with sudo
 }
 
 // Key is unique across agents, e.g. "claude:abc".

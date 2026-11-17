@@ -8,6 +8,8 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+
+	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
 
 // homeDir is the home of the user we run as. Under sudo it comes from the
@@ -98,4 +100,23 @@ func runAttached(name string, args ...string) error {
 	cmd := exec.Command(name, args...)
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	return cmd.Run()
+}
+
+// mergeHomes pairs each of root's agent sources with the caller's, so
+// `sudo burrow-g` shows both users' sessions.
+func mergeHomes(mine, theirs []session.Source, me, them string) []session.Source {
+	merged := make([]session.Source, len(mine))
+	for i := range mine {
+		merged[i] = session.Merged{{Owner: me, Source: mine[i]}, {Owner: them, Source: theirs[i]}}
+	}
+	return merged
+}
+
+// asOwner resumes another user's session as that user, so the agent finds it
+// in their home and never writes root-owned files there. me is "" outside sudo.
+func asOwner(s session.Session, argv []string, me, path string) []string {
+	if me == "" || s.Owner == "" || s.Owner == me {
+		return argv
+	}
+	return append([]string{"sudo", "-u", s.Owner, "-H", "--", "env", "PATH=" + path}, argv...)
 }

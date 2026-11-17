@@ -35,6 +35,12 @@ func TestPrintList(t *testing.T) {
 	if !order.MatchString(lines[1]) {
 		t.Errorf("row has wrong content or order: %q", lines[1])
 	}
+
+	out.Reset()
+	printList(&out, []session.Session{{Agent: "claude", ID: "r", Title: "As root", Owner: "root"}}, "/home/u", now)
+	if !strings.HasPrefix(out.String(), "[root] As root") {
+		t.Errorf("root's session should be tagged: %q", out.String())
+	}
 }
 
 type fakeSource struct {
