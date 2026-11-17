@@ -101,16 +101,9 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
 		star = d.theme.Star.Render("★") + " "
 	}
 	ago := helpers.TimeAgo(s.LastUsed, time.Now())
-	tag := ""
-	if s.Owner == "root" { // only under sudo
-		tag = "root  "
-	}
-	title := helpers.Truncate(s.Title, m.Width()-len(ago)-len(tag)-6)
+	title := helpers.Truncate(s.Title, m.Width()-len(ago)-6)
 
 	left := star + title
 	right := d.theme.Muted.Render(ago)
-	if tag != "" {
-		right = d.theme.Root.Render(tag) + right
-	}
 	fmt.Fprint(w, d.theme.Row(left, right, m.Width(), index == m.Index(), d.active))
 }

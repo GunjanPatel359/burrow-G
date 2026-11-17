@@ -121,11 +121,8 @@ script at `/usr/local/bin/burrow-g` that runs your burrow-G and adds your PATH (
 system folders), so the agent CLIs are found too. Run it again if burrow-G moves (for
 example after switching Node versions with nvm). It never overwrites a file it didn't make.
 
-Under sudo, burrow-G shows **both** root's sessions (tagged `root`) and your own. Your
-sessions are resumed as you (`sudo -u <you>`), so the agent finds them in your home and no
-root-owned files end up there; root's sessions are resumed as root. burrow-G keeps its own
-index in root's home (even with `sudo -E`) and resumes in the same terminal instead of
-opening a new tab.
+Under sudo, burrow-G always uses root's home (even with `sudo -E`), keeps its own index
+there, and resumes in the same terminal instead of opening a new tab.
 
 ## How it works
 

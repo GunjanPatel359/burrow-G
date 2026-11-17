@@ -50,19 +50,6 @@ func TestRow(t *testing.T) {
 	}
 }
 
-func TestRow_RootTag(t *testing.T) {
-	root := session.Session{Title: "Admin work", LastUsed: now, Owner: "root"}
-	mine := session.Session{Title: "Mine", LastUsed: now, Owner: "gunjan"}
-	rows := strings.Split(newTest(60, root, mine).View(), "\n")
-
-	if !strings.Contains(rows[0], "root") {
-		t.Errorf("root's session should be tagged: %q", rows[0])
-	}
-	if strings.Contains(rows[1], "gunjan") || strings.Contains(rows[1], "root") {
-		t.Errorf("the caller's own session needs no tag: %q", rows[1])
-	}
-}
-
 func TestLongTitleFits(t *testing.T) {
 	s := session.Session{Title: strings.Repeat("very long title ", 10), LastUsed: now}
 	first := strings.Split(newTest(40, s).View(), "\n")[0]

@@ -24,8 +24,8 @@ func (d *DB) Save(agent string, list []session.Session) error {
 	}
 	for _, s := range list {
 		_, err := tx.Exec(
-			`INSERT INTO sessions (agent, id, title, dir, last_used, bookmarked, owner) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-			agent, s.ID, s.Title, s.Dir, s.LastUsed.UnixMilli(), marked[s.ID], s.Owner,
+			`INSERT INTO sessions (agent, id, title, dir, last_used, bookmarked) VALUES (?, ?, ?, ?, ?, ?)`,
+			agent, s.ID, s.Title, s.Dir, s.LastUsed.UnixMilli(), marked[s.ID],
 		)
 		if err != nil {
 			return err
@@ -55,7 +55,7 @@ func bookmarkedIDs(tx *sql.Tx, agent string) (map[string]bool, error) {
 // List returns one agent's sessions, bookmarked first, then newest first.
 func (d *DB) List(agent string) ([]session.Session, error) {
 	rows, err := d.sql.Query(
-		`SELECT id, title, dir, last_used, bookmarked, owner FROM sessions
+		`SELECT id, title, dir, last_used, bookmarked FROM sessions
 		 WHERE agent = ? ORDER BY bookmarked DESC, last_used DESC`, agent)
 	if err != nil {
 		return nil, err
@@ -66,7 +66,7 @@ func (d *DB) List(agent string) ([]session.Session, error) {
 	for rows.Next() {
 		s := session.Session{Agent: agent}
 		var lastUsed int64
-		if err := rows.Scan(&s.ID, &s.Title, &s.Dir, &lastUsed, &s.Bookmarked, &s.Owner); err != nil {
+		if err := rows.Scan(&s.ID, &s.Title, &s.Dir, &lastUsed, &s.Bookmarked); err != nil {
 			return nil, err
 		}
 		s.LastUsed = time.UnixMilli(lastUsed)
@@ -98,7 +98,7 @@ func (d *DB) Counts() (map[string]int, error) {
 // Find returns every session whose id starts with prefix, across all agents.
 func (d *DB) Find(prefix string) ([]session.Session, error) {
 	rows, err := d.sql.Query(
-		`SELECT agent, id, title, dir, last_used, bookmarked, owner FROM sessions
+		`SELECT agent, id, title, dir, last_used, bookmarked FROM sessions
 		 WHERE substr(id, 1, length(?)) = ?`, prefix, prefix)
 	if err != nil {
 		return nil, err
@@ -109,7 +109,7 @@ func (d *DB) Find(prefix string) ([]session.Session, error) {
 	for rows.Next() {
 		var s session.Session
 		var lastUsed int64
-		if err := rows.Scan(&s.Agent, &s.ID, &s.Title, &s.Dir, &lastUsed, &s.Bookmarked, &s.Owner); err != nil {
+		if err := rows.Scan(&s.Agent, &s.ID, &s.Title, &s.Dir, &lastUsed, &s.Bookmarked); err != nil {
 			return nil, err
 		}
 		s.LastUsed = time.UnixMilli(lastUsed)

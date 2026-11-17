@@ -9,8 +9,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-
-	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
 
 func TestHomeDir(t *testing.T) {
@@ -117,44 +115,5 @@ func TestSetupSudo_Refuses(t *testing.T) {
 		if err := setupSudo(c.binary, "/p", c.target, c.sudoUser, never); err == nil {
 			t.Errorf("%s: want an error", name)
 		}
-	}
-}
-
-type namedSource struct {
-	session.Source
-	name string
-}
-
-func (n namedSource) Name() string { return n.name }
-
-func TestMergeHomes(t *testing.T) {
-	mine := []session.Source{namedSource{name: "claude"}, namedSource{name: "codex"}}
-	theirs := []session.Source{namedSource{name: "claude"}, namedSource{name: "codex"}}
-
-	got := mergeHomes(mine, theirs, "root", "gunjan")
-	if len(got) != 2 || got[1].Name() != "codex" {
-		t.Fatalf("got %v", got)
-	}
-	m, ok := got[0].(session.Merged)
-	if !ok || m[0].Owner != "root" || m[1].Owner != "gunjan" {
-		t.Errorf("claude = %#v, want root's then gunjan's", got[0])
-	}
-}
-
-func TestAsOwner(t *testing.T) {
-	argv := []string{"claude", "--resume", "abc"}
-
-	if got := asOwner(session.Session{}, argv, "root", "/p"); !slices.Equal(got, argv) {
-		t.Errorf("no owner: %q", got)
-	}
-	if got := asOwner(session.Session{Owner: "gunjan"}, argv, "", "/p"); !slices.Equal(got, argv) {
-		t.Errorf("not under sudo: %q", got)
-	}
-	if got := asOwner(session.Session{Owner: "root"}, argv, "root", "/p"); !slices.Equal(got, argv) {
-		t.Errorf("root's own session: %q", got)
-	}
-	want := []string{"sudo", "-u", "gunjan", "-H", "--", "env", "PATH=/p", "claude", "--resume", "abc"}
-	if got := asOwner(session.Session{Owner: "gunjan"}, argv, "root", "/p"); !slices.Equal(got, want) {
-		t.Errorf("caller's session:\n got %q\nwant %q", got, want)
 	}
 }

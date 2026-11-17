@@ -100,9 +100,6 @@ func printList(w io.Writer, list []session.Session, home string, now time.Time) 
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	for _, s := range list {
 		title := helpers.Truncate(s.Title, 50)
-		if s.Owner == "root" {
-			title = "[root] " + title
-		}
 		if s.Bookmarked {
 			title = "★ " + title
 		}

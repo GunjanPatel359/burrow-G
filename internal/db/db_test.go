@@ -1,7 +1,6 @@
 package db
 
 import (
-	"database/sql"
 	"path/filepath"
 	"testing"
 	"time"
@@ -163,51 +162,5 @@ func TestRefresh(t *testing.T) {
 	}
 	if got := ids(t, d, "claude"); len(got) != 1 || got[0] != "new" {
 		t.Errorf("got %v, want [new]", got)
-	}
-}
-
-func TestOwner_SavedListedFound(t *testing.T) {
-	d := openTest(t)
-	s := older
-	s.Owner = "root"
-	if err := d.Save("claude", []session.Session{s}); err != nil {
-		t.Fatal(err)
-	}
-
-	list, err := d.List("claude")
-	if err != nil || len(list) != 1 || list[0].Owner != "root" {
-		t.Errorf("List = %+v, %v; want owner root", list, err)
-	}
-	found, err := d.Find("old")
-	if err != nil || len(found) != 1 || found[0].Owner != "root" {
-		t.Errorf("Find = %+v, %v; want owner root", found, err)
-	}
-}
-
-func TestOpen_AddsOwnerToOldDatabase(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "sessions.db")
-	old, err := sql.Open("sqlite", path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, err = old.Exec(`CREATE TABLE sessions (agent TEXT NOT NULL, id TEXT NOT NULL, title TEXT NOT NULL,
-		dir TEXT NOT NULL, last_used INTEGER NOT NULL, bookmarked INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (agent, id));
-		INSERT INTO sessions VALUES ('claude', 'kept', 'Kept', '/tmp', 0, 1)`)
-	old.Close()
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	d, err := Open(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer d.Close()
-	list, err := d.List("claude")
-	if err != nil || len(list) != 1 || !list[0].Bookmarked || list[0].Owner != "" {
-		t.Errorf("List = %+v, %v; want the old row, still bookmarked, no owner", list, err)
-	}
-	if _, err := Open(path); err != nil {
-		t.Errorf("opening again: %v", err)
 	}
 }
