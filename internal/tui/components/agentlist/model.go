@@ -111,5 +111,5 @@ func (d delegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
 	a := item.(Agent)
 	count := fmt.Sprint(a.Count)
 	name := helpers.Truncate(DisplayName(a.Name), m.Width()-len(count)-3)
-	fmt.Fprint(w, d.theme.Row(name, count, m.Width(), index == m.Index(), d.active))
+	fmt.Fprint(w, d.theme.Row(theme.Plain(name), theme.Plain(count), m.Width(), index == m.Index(), d.active))
 }

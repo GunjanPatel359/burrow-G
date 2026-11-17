@@ -9,14 +9,20 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+// sessions is an index of the agents' files and can always be rebuilt.
+// bookmarks only exists here, so refreshing never touches it.
 const schema = `
 CREATE TABLE IF NOT EXISTS sessions (
-	agent      TEXT NOT NULL,
-	id         TEXT NOT NULL,
-	title      TEXT NOT NULL,
-	dir        TEXT NOT NULL,
-	last_used  INTEGER NOT NULL,
-	bookmarked INTEGER NOT NULL DEFAULT 0,
+	agent     TEXT NOT NULL,
+	id        TEXT NOT NULL,
+	title     TEXT NOT NULL,
+	dir       TEXT NOT NULL,
+	last_used INTEGER NOT NULL,
+	PRIMARY KEY (agent, id)
+);
+CREATE TABLE IF NOT EXISTS bookmarks (
+	agent TEXT NOT NULL,
+	id    TEXT NOT NULL,
 	PRIMARY KEY (agent, id)
 );`
 

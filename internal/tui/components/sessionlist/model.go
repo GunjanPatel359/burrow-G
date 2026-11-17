@@ -45,7 +45,11 @@ func (m *Model) SetSessions(sessions []session.Session) {
 	for i, s := range sessions {
 		items[i] = item{s: s, home: m.home}
 	}
-	m.list.SetItems(items)
+	// With a search applied, SetItems returns the new search results as a
+	// command; run it now so the list never shows up empty.
+	if cmd := m.list.SetItems(items); cmd != nil {
+		m.list, _ = m.list.Update(cmd())
+	}
 }
 
 func (m *Model) SetSize(w, h int) { m.list.SetSize(w, h) }
@@ -61,6 +65,16 @@ func (m *Model) SetTheme(t theme.Theme) {
 }
 
 func (m *Model) ResetCursor() { m.list.ResetSelected() }
+
+// Select moves the cursor to the session with this key, if it is shown.
+func (m *Model) Select(key string) {
+	for i, it := range m.list.VisibleItems() {
+		if it.(item).s.Key() == key {
+			m.list.Select(i)
+			return
+		}
+	}
+}
 
 func (m Model) Selected() (session.Session, bool) {
 	it, ok := m.list.SelectedItem().(item)
@@ -96,14 +110,14 @@ func (delegate) Update(tea.Msg, *list.Model) tea.Cmd { return nil }
 
 func (d delegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
 	s := li.(item).s
-	star := "  "
+	star := theme.Part{Text: "  "}
 	if s.Bookmarked {
-		star = d.theme.Star.Render("★") + " "
+		star = theme.Part{Text: "★ ", Style: d.theme.Star}
 	}
 	ago := helpers.TimeAgo(s.LastUsed, time.Now())
 	title := helpers.Truncate(s.Title, m.Width()-len(ago)-6)
 
-	left := star + title
-	right := d.theme.Muted.Render(ago)
+	left := []theme.Part{star, {Text: title}}
+	right := []theme.Part{{Text: ago, Style: d.theme.Muted}}
 	fmt.Fprint(w, d.theme.Row(left, right, m.Width(), index == m.Index(), d.active))
 }

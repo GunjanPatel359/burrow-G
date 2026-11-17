@@ -61,37 +61,44 @@ func TestSaveAndList(t *testing.T) {
 	}
 }
 
-func TestSetBookmark_MovesToTop(t *testing.T) {
+func TestSetBookmark_OnAndOff(t *testing.T) {
 	d := openTest(t)
 	d.Save("claude", []session.Session{older, newer})
 
 	if err := d.SetBookmark(older, true); err != nil {
 		t.Fatal(err)
 	}
-
+	if err := d.SetBookmark(older, true); err != nil {
+		t.Errorf("bookmarking twice: %v", err)
+	}
 	list, _ := d.List("claude")
 	if list[0].ID != "old" || !list[0].Bookmarked {
 		t.Errorf("first = %+v, want old and bookmarked", list[0])
 	}
+
+	if err := d.SetBookmark(older, false); err != nil {
+		t.Fatal(err)
+	}
+	list, _ = d.List("claude")
+	if list[0].ID != "new" || list[1].Bookmarked {
+		t.Errorf("got %+v, want new first and no bookmarks", list)
+	}
 }
 
-func TestSave_KeepsBookmarksAndDropsGone(t *testing.T) {
+func TestBookmark_HiddenWhileGoneBackWhenReturns(t *testing.T) {
 	d := openTest(t)
 	d.Save("claude", []session.Session{older, newer})
 	d.SetBookmark(older, true)
 
-	fresh := session.Session{Agent: "claude", ID: "fresh", Title: "Fresh", Dir: "/tmp/c", LastUsed: now}
-	if err := d.Save("claude", []session.Session{older, fresh}); err != nil {
-		t.Fatal(err)
+	d.Save("claude", []session.Session{newer})
+	if got := ids(t, d, "claude"); len(got) != 1 || got[0] != "new" {
+		t.Errorf("while gone: got %v, want [new]", got)
 	}
 
-	got := ids(t, d, "claude")
-	if len(got) != 2 || got[0] != "old" || got[1] != "fresh" {
-		t.Errorf("got %v, want [old fresh]", got)
-	}
+	d.Save("claude", []session.Session{older, newer})
 	list, _ := d.List("claude")
-	if !list[0].Bookmarked {
-		t.Error("bookmark on 'old' was lost")
+	if list[0].ID != "old" || !list[0].Bookmarked {
+		t.Errorf("after it returns: first = %+v, want old and bookmarked", list[0])
 	}
 }
 
@@ -111,12 +118,18 @@ func TestSave_OtherAgentUntouched(t *testing.T) {
 func TestRemove(t *testing.T) {
 	d := openTest(t)
 	d.Save("claude", []session.Session{older, newer})
+	d.SetBookmark(older, true)
 
 	if err := d.Remove(older); err != nil {
 		t.Fatal(err)
 	}
 	if got := ids(t, d, "claude"); len(got) != 1 || got[0] != "new" {
 		t.Errorf("got %v, want [new]", got)
+	}
+
+	d.Save("claude", []session.Session{older, newer})
+	if list, _ := d.List("claude"); list[1].Bookmarked {
+		t.Error("Remove should also drop the bookmark")
 	}
 }
 
@@ -146,6 +159,11 @@ func TestFind(t *testing.T) {
 			t.Errorf("Find(%q) = %d matches, want %d", c.prefix, len(got), c.want)
 		}
 	}
+
+	d.SetBookmark(session.Session{Agent: "opencode", ID: "ses_eb20"}, true)
+	if got, _ := d.Find("ses_"); len(got) != 1 || !got[0].Bookmarked {
+		t.Errorf("Find should show the bookmark: %+v", got)
+	}
 }
 
 type fakeSource struct{ list []session.Session }
@@ -162,5 +180,17 @@ func TestRefresh(t *testing.T) {
 	}
 	if got := ids(t, d, "claude"); len(got) != 1 || got[0] != "new" {
 		t.Errorf("got %v, want [new]", got)
+	}
+}
+
+func TestSave_EmptyListKeepsRows(t *testing.T) {
+	d := openTest(t)
+	d.Save("claude", []session.Session{older, newer})
+
+	if err := d.Save("claude", nil); err != nil {
+		t.Fatal(err)
+	}
+	if got := ids(t, d, "claude"); len(got) != 2 {
+		t.Errorf("an empty list wiped the rows: got %v", got)
 	}
 }

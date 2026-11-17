@@ -4,7 +4,7 @@
 
 ```
  Agents             │ Claude Code · 60
-▌Claude Code     60 │   Refactor auth middleware                             5 minutes ago
+▌Claude Code     60 │ ★ Refactor auth middleware                             5 minutes ago
  Qoder            7 │▌  Fix flaky integration test                          18 minutes ago
  OpenCode        12 │   Add dark mode toggle                                    1 day ago
  Copilot CLI      4 │   Investigate memory leak in worker                      3 days ago
@@ -15,11 +15,11 @@
                     │ resume  claude --resume 3f6c2a1e-8b4d-4e7a-9c1f-2d5b6a7e8f90
                     │ used    18 minutes ago · 2026-11-15 10:36
 ───────────────────────────────────────────────────────────────────────────────────────────
- ● refreshed   ↑/↓ move · enter new tab · o resume here · / search · ← agents · q quit
+ ● refreshed   ↑/↓ move · enter new tab · o resume here · b bookmark · / search · q quit
 ```
 
-> **Status: v0.0.1 — early preview.** Listing, searching and resuming work. Bookmarks and
-> deleting sessions are on the way. Expect rough edges and please [open an issue](../../issues).
+> **Status: v0.0.1 — early preview.** Listing, searching, resuming and bookmarks work.
+> Deleting sessions is on the way. Expect rough edges and please [open an issue](../../issues).
 
 ## Why
 
@@ -97,6 +97,7 @@ burrow-g help            show help
 | `↑` / `↓` | pick an agent | move |
 | `enter` / `→` / `tab` | go to its sessions | open in a new tab (or here, see below) |
 | `o` | — | resume in this terminal |
+| `b` | — | bookmark (★) — bookmarked sessions stay at the top |
 | `/` | — | search title or folder |
 | `←` / `esc` | — | back to agents |
 | `r` | refresh | refresh |
@@ -129,7 +130,10 @@ there, and resumes in the same terminal instead of opening a new tab.
 - Each agent has a small reader in `internal/agents/<agent>/` that turns its files into a
   common `Session` (agent, id, title, folder, last used).
 - burrow-G keeps an index in `~/.local/share/burrow-g/sessions.db` (SQLite). The UI shows that
-  index instantly and refreshes the selected agent in the background.
+  index instantly and refreshes the selected agent in the background. A refresh that finds no
+  sessions at all leaves the index as it is.
+- Bookmarks live in their own table, so refreshing never touches them. A bookmarked session
+  that disappears is hidden, and comes back with its ★ if the session returns.
 - Resuming changes into the session's folder and replaces burrow-G with the agent's own
   command, so when you quit the agent you are back at your normal prompt.
 - Nothing leaves your machine.
@@ -161,7 +165,6 @@ the model/update/view idea from scratch and walks through this codebase.
 
 ## Roadmap
 
-- Bookmarks (★ to pin sessions to the top)
 - Delete sessions safely (to a trash folder, with restore)
 - More agents: Gemini CLI, Qwen Code, Cursor CLI
 - More terminals for new tabs: kitty, WezTerm, tmux

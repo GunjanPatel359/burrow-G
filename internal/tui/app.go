@@ -110,6 +110,23 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case bookmarkedMsg:
+		if msg.err != nil {
+			m.status.Error(msg.err)
+			return m, nil
+		}
+		if m.agent != nil && msg.s.Agent == m.agent.Name() {
+			m.loadSessions()
+			m.sessions.Select(msg.s.Key()) // it moved; keep the cursor on it
+			m.syncDetails()
+		}
+		if msg.on {
+			m.status.OK(fmt.Sprintf("bookmarked %q", msg.s.Title))
+		} else {
+			m.status.OK(fmt.Sprintf("removed bookmark from %q", msg.s.Title))
+		}
+		return m, nil
+
 	case agentlist.SelectedMsg:
 		return m, m.selectAgent(msg.Name)
 
@@ -136,6 +153,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if s, ok := m.sessions.Selected(); ok {
 				m.chosen = &s
 				return m, tea.Quit
+			}
+			return m, nil
+		case m.focus == sessionPane && key.Matches(msg, keys.Bookmark):
+			if s, ok := m.sessions.Selected(); ok {
+				return m, bookmark(m.store, s, !s.Bookmarked)
 			}
 			return m, nil
 		case m.focus == sessionPane && key.Matches(msg, keys.Left) && !m.sessions.Filtered():

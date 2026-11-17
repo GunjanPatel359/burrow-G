@@ -4,6 +4,8 @@
 
 ### Added
 
+- Bookmarks: press `b` on a session to keep it at the top of its agent's list (★); press `b`
+  again to remove it. Bookmarks survive refreshes and restarts.
 - `sudo burrow-g` lists and resumes sessions that agents saved under root. Run
   `burrow-g setup-sudo` once so sudo can find burrow-G and your agents. Under sudo,
   burrow-G uses root's home even if `HOME` still points at yours, so it never writes
@@ -11,6 +13,9 @@
 
 ### Fixed
 
+- A refresh that finds no sessions (for example while a folder is missing) no longer empties
+  the list.
+- Refreshing while a search is applied no longer shows an empty list.
 - `burrow-g version` showed `dev` when installed with `go install`; it now shows the
   real version.
 
