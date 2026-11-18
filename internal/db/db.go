@@ -3,10 +3,15 @@ package db
 
 import (
 	"database/sql"
+	"errors"
+	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 
 	_ "modernc.org/sqlite"
+
+	"github.com/GunjanPatel359/burrow-G/internal/db/patches"
 )
 
 // sessions is an index of the agents' files and can always be rebuilt.
@@ -30,22 +35,51 @@ type DB struct {
 	sql *sql.DB
 }
 
-// Open opens the database at path, creating it and its tables if needed.
+// Open opens the database at path, creating it and its tables if needed, and
+// brings an older file up to date.
 func Open(path string) (*DB, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err
 	}
+	_, statErr := os.Stat(path)
 	conn, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, err
 	}
 	conn.SetMaxOpenConns(1) // SQLite allows one writer at a time
 
-	if _, err := conn.Exec(schema); err != nil {
+	if err := prepare(conn, path, statErr == nil); err != nil {
 		conn.Close()
-		return nil, err
+		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	return &DB{sql: conn}, nil
+}
+
+// prepare backs up a file that needs patches, before anything changes it,
+// then creates missing tables and runs the patches.
+func prepare(conn *sql.DB, path string, existed bool) error {
+	needed, err := patches.Pending(conn)
+	if err != nil {
+		return err
+	}
+	if existed && needed {
+		if err := backup(conn, path+".bak"); err != nil {
+			return fmt.Errorf("backup: %w", err)
+		}
+	}
+	if _, err := conn.Exec(schema); err != nil {
+		return err
+	}
+	return patches.Run(conn)
+}
+
+// backup writes a copy of the database to path, replacing an older backup.
+func backup(conn *sql.DB, path string) error {
+	if err := os.Remove(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return err
+	}
+	_, err := conn.Exec(`VACUUM INTO ?`, path)
+	return err
 }
 
 func (d *DB) Close() error {

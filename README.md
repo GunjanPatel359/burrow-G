@@ -152,6 +152,7 @@ internal/
   session/             shared Session type, Source interface, resume
   agents/<agent>/      one reader per agent — add a new agent here
   db/                  burrow-G's own SQLite index
+    patches/           bring index files from older versions up to date
   launch/              open a command in a new terminal tab (gnome.go, …)
   helpers/             small text/time/file helpers
   tui/                 Bubble Tea UI
@@ -159,6 +160,19 @@ internal/
     theme/             colour palettes → styles
     components/        agentlist, sessionlist, details, statusbar
 ```
+
+### Changing how data is stored
+
+burrow-G brings index files from older versions up to date itself, every time it starts
+(`internal/db/patches/`):
+
+- Each release that changes storage gets **one patch file**, e.g. `patch0_0_3.go`, holding
+  every change that release needs, plus one line in `chain` in `patches.go`.
+- Patches run in order, once per file: the file's `PRAGMA user_version` counts how many it
+  has had. Each runs in a transaction, and the file is first backed up to `sessions.db.bak`.
+- A file made by a newer burrow-G is refused with "please upgrade" instead of an SQL error.
+- Never change a released patch — fixes go in the next release's patch. Check before
+  changing anything (e.g. `dropColumn`), because brand-new files get every patch too.
 
 New to Bubble Tea? [docs/bubbletea-cheatsheet.md](docs/bubbletea-cheatsheet.md) explains
 the model/update/view idea from scratch and walks through this codebase.

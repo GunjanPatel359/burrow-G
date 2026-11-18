@@ -1,7 +1,10 @@
 package db
 
 import (
+	"database/sql"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -192,5 +195,94 @@ func TestSave_EmptyListKeepsRows(t *testing.T) {
 	}
 	if got := ids(t, d, "claude"); len(got) != 2 {
 		t.Errorf("an empty list wiped the rows: got %v", got)
+	}
+}
+
+// oldFile makes an index file the way burrow-G 0.0.1 did. newer marks it as
+// made by a burrow-G with more patches than this one.
+func oldFile(t *testing.T, newer bool) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "sessions.db")
+	conn, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	_, err = conn.Exec(`CREATE TABLE sessions (agent TEXT NOT NULL, id TEXT NOT NULL, title TEXT NOT NULL,
+		dir TEXT NOT NULL, last_used INTEGER NOT NULL, bookmarked INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (agent, id));
+		INSERT INTO sessions VALUES ('claude', 'kept', 'Kept', '/tmp', 1, 0)`)
+	if err == nil && newer {
+		_, err = conn.Exec(`PRAGMA user_version = 999`)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestOpen_PatchesOldFile(t *testing.T) {
+	d, err := Open(oldFile(t, false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+
+	var n int
+	d.sql.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name = 'bookmarked'`).Scan(&n)
+	if n != 0 {
+		t.Error("Open should have run the patches and dropped bookmarked")
+	}
+	if got := ids(t, d, "claude"); len(got) != 1 {
+		t.Errorf("rows = %v, want [kept]", got)
+	}
+}
+
+func TestOpen_RefusesNewerFile(t *testing.T) {
+	path := oldFile(t, true)
+	if _, err := Open(path); err == nil || !strings.Contains(err.Error(), "newer burrow-G") || !strings.Contains(err.Error(), path) {
+		t.Errorf("err = %v, want a 'newer burrow-G' error naming the file", err)
+	}
+}
+
+func columnsOf(t *testing.T, path string) string {
+	t.Helper()
+	conn, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	var cols string
+	if err := conn.QueryRow(`SELECT group_concat(name) FROM pragma_table_info('sessions')`).Scan(&cols); err != nil {
+		t.Fatal(err)
+	}
+	return cols
+}
+
+func TestOpen_BacksUpBeforePatching(t *testing.T) {
+	path := oldFile(t, false)
+	os.WriteFile(path+".bak", []byte("an older backup"), 0o644)
+
+	d, err := Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.Close()
+
+	if cols := columnsOf(t, path+".bak"); !strings.Contains(cols, "bookmarked") {
+		t.Errorf("backup columns = %q, want the file as it was before patching", cols)
+	}
+}
+
+func TestOpen_NoBackupWhenNothingToPatch(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sessions.db")
+	for range 2 { // brand new, then already up to date
+		d, err := Open(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		d.Close()
+	}
+	if _, err := os.Stat(path + ".bak"); err == nil {
+		t.Error("no patch ran, so there should be no backup")
 	}
 }
