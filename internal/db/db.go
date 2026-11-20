@@ -41,14 +41,13 @@ func Open(path string) (*DB, error) {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return nil, err
 	}
-	_, statErr := os.Stat(path)
 	conn, err := sql.Open("sqlite", path)
 	if err != nil {
 		return nil, err
 	}
 	conn.SetMaxOpenConns(1) // SQLite allows one writer at a time
 
-	if err := prepare(conn, path, statErr == nil); err != nil {
+	if err := prepare(conn, path); err != nil {
 		conn.Close()
 		return nil, fmt.Errorf("%s: %w", path, err)
 	}
@@ -57,12 +56,12 @@ func Open(path string) (*DB, error) {
 
 // prepare backs up a file that needs patches, before anything changes it,
 // then creates missing tables and runs the patches.
-func prepare(conn *sql.DB, path string, existed bool) error {
-	needed, err := patches.Pending(conn)
+func prepare(conn *sql.DB, path string) error {
+	version, err := patches.From(conn)
 	if err != nil {
 		return err
 	}
-	if existed && needed {
+	if patches.Needed(version) {
 		if err := backup(conn, path+".bak"); err != nil {
 			return fmt.Errorf("backup: %w", err)
 		}
@@ -70,7 +69,7 @@ func prepare(conn *sql.DB, path string, existed bool) error {
 	if _, err := conn.Exec(schema); err != nil {
 		return err
 	}
-	return patches.Run(conn)
+	return patches.Run(conn, version)
 }
 
 // backup writes a copy of the database to path, replacing an older backup.

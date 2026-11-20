@@ -199,7 +199,7 @@ func TestSave_EmptyListKeepsRows(t *testing.T) {
 }
 
 // oldFile makes an index file the way burrow-G 0.0.1 did. newer marks it as
-// made by a burrow-G with more patches than this one.
+// made by a burrow-G newer than this one.
 func oldFile(t *testing.T, newer bool) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "sessions.db")
@@ -212,7 +212,8 @@ func oldFile(t *testing.T, newer bool) string {
 		dir TEXT NOT NULL, last_used INTEGER NOT NULL, bookmarked INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (agent, id));
 		INSERT INTO sessions VALUES ('claude', 'kept', 'Kept', '/tmp', 1, 0)`)
 	if err == nil && newer {
-		_, err = conn.Exec(`PRAGMA user_version = 999`)
+		_, err = conn.Exec(`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+			INSERT INTO meta VALUES ('version', '999.0.0')`)
 	}
 	if err != nil {
 		t.Fatal(err)
@@ -284,5 +285,19 @@ func TestOpen_NoBackupWhenNothingToPatch(t *testing.T) {
 	}
 	if _, err := os.Stat(path + ".bak"); err == nil {
 		t.Error("no patch ran, so there should be no backup")
+	}
+}
+
+func TestOpen_EmptyFileIsNew(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sessions.db")
+	os.WriteFile(path, nil, 0o644)
+
+	d, err := Open(path)
+	if err != nil {
+		t.Fatalf("an empty file should open as a new one: %v", err)
+	}
+	d.Close()
+	if _, err := os.Stat(path + ".bak"); err == nil {
+		t.Error("an empty file has nothing to back up")
 	}
 }

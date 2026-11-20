@@ -1,88 +1,143 @@
 // Package patches brings index files made by older versions of burrow-G up to
 // date. Each release that changes storage gets one patch file (patch0_0_2.go,
-// …) and one entry in chain. Never change a released patch; fixes go in the
+// …) and one line in chain. Never change a released patch; fixes go in the
 // next release's patch.
 package patches
 
 import (
 	"database/sql"
 	"fmt"
+	"strconv"
+	"strings"
+	"sync"
 )
 
-type Patch struct {
-	Version string // the burrow-G release that needs it, e.g. "0.0.2"
-	Apply   func(tx *sql.Tx) error
+// Patch is one release's changes. Invoke writes them with exec.
+type Patch interface {
+	Version() string // the burrow-G release that needs it, e.g. "0.0.2"
+	Invoke() error
 }
 
-// chain is every patch in release order. PRAGMA user_version stores how many
-// of them a file has had, so each runs once per file.
+// chain is every patch in release order.
 var chain = []Patch{
-	patch0_0_2,
+	patch0_0_2{},
 }
 
-// Run applies the patches the file at conn hasn't had yet.
-func Run(conn *sql.DB) error { return run(conn, chain) }
+// tx is the transaction of the patch that is running.
+var (
+	mu sync.Mutex
+	tx *sql.Tx
+)
 
-// Pending reports whether the file at conn still needs patches.
-func Pending(conn *sql.DB) (bool, error) { return pending(conn, chain) }
-
-func pending(conn *sql.DB, chain []Patch) (bool, error) {
-	done, err := applied(conn, chain)
-	return done < len(chain), err
+// exec runs a statement inside the running patch's transaction.
+func exec(query string, args ...any) error {
+	_, err := tx.Exec(query, args...)
+	return err
 }
 
-// applied returns how many patches the file has had. A file made by a newer
-// burrow-G is an error, so it is never changed by an older one.
-func applied(conn *sql.DB, chain []Patch) (int, error) {
-	var done int
-	if err := conn.QueryRow(`PRAGMA user_version`).Scan(&done); err != nil {
-		return 0, err
+// base is the version of a file from before versions were stored.
+const base = "0.0.1"
+
+// From returns the version the file at conn is on, "" for a new file.
+func From(conn *sql.DB) (string, error) { return from(conn, chain) }
+
+// Needed reports whether a file on this version needs patches.
+func Needed(version string) bool { return needed(chain, version) }
+
+// Run patches a file on this version, or only stores the latest version on a
+// new one, since its tables are already up to date.
+func Run(conn *sql.DB, version string) error { return run(conn, chain, version) }
+
+func from(conn *sql.DB, chain []Patch) (string, error) {
+	if ok, err := hasTable(conn, "meta"); err != nil || !ok {
+		if ok, err := hasTable(conn, "sessions"); err != nil || !ok {
+			return "", err
+		}
+		return base, nil
 	}
-	if done > len(chain) {
-		return 0, fmt.Errorf("the index was made by a newer burrow-G (it has %d patches, this one knows %d), please upgrade burrow-G", done, len(chain))
+	var v string
+	if err := conn.QueryRow(`SELECT value FROM meta WHERE key = 'version'`).Scan(&v); err != nil {
+		return "", err
 	}
-	return done, nil
+	if newer(v, latest(chain)) {
+		return "", fmt.Errorf("the index was made by a newer burrow-G (version %s, this one knows up to %s), please upgrade burrow-G", v, latest(chain))
+	}
+	return v, nil
 }
 
-func run(conn *sql.DB, chain []Patch) error {
-	done, err := applied(conn, chain)
-	if err != nil {
-		return err
+func needed(chain []Patch, version string) bool {
+	return version != "" && newer(latest(chain), version)
+}
+
+func run(conn *sql.DB, chain []Patch, version string) error {
+	if version == "" {
+		return apply(conn, latest(chain), nil)
 	}
-	for i := done; i < len(chain); i++ {
-		if err := apply(conn, i+1, chain[i]); err != nil {
-			return fmt.Errorf("patch %s: %w", chain[i].Version, err)
+	for _, p := range chain {
+		if !newer(p.Version(), version) {
+			continue
+		}
+		if err := apply(conn, p.Version(), p); err != nil {
+			return fmt.Errorf("patch %s: %w", p.Version(), err)
 		}
 	}
 	return nil
 }
 
-// apply runs one patch and records it in one transaction, so a patch that
-// fails changes nothing.
-func apply(conn *sql.DB, n int, p Patch) error {
-	tx, err := conn.Begin()
-	if err != nil {
+// apply runs a patch and stores its version in one transaction, so a patch
+// that fails changes nothing.
+func apply(conn *sql.DB, version string, p Patch) error {
+	mu.Lock()
+	defer mu.Unlock()
+
+	var err error
+	if tx, err = conn.Begin(); err != nil {
 		return err
 	}
 	defer tx.Rollback()
 
-	if err := p.Apply(tx); err != nil {
-		return err
+	if p != nil {
+		if err := p.Invoke(); err != nil {
+			return err
+		}
 	}
-	if _, err := tx.Exec(fmt.Sprintf(`PRAGMA user_version = %d`, n)); err != nil {
+	err = exec(`CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+		INSERT OR REPLACE INTO meta VALUES ('version', ?)`, version)
+	if err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
-// dropColumn removes a column if it is there. New files get every patch too,
-// so patches must check before they change anything.
-func dropColumn(tx *sql.Tx, table, col string) error {
-	var n int
-	err := tx.QueryRow(`SELECT COUNT(*) FROM pragma_table_info(?) WHERE name = ?`, table, col).Scan(&n)
-	if err != nil || n == 0 {
-		return err
+func latest(chain []Patch) string {
+	if len(chain) == 0 {
+		return base
 	}
-	_, err = tx.Exec(fmt.Sprintf(`ALTER TABLE %s DROP COLUMN %s`, table, col))
-	return err
+	return chain[len(chain)-1].Version()
+}
+
+func hasTable(conn *sql.DB, name string) (bool, error) {
+	var n int
+	err := conn.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = ?`, name).Scan(&n)
+	return n > 0, err
+}
+
+// newer reports whether version a comes after b, e.g. 0.0.10 after 0.0.9.
+func newer(a, b string) bool {
+	as, bs := strings.Split(a, "."), strings.Split(b, ".")
+	for i := range max(len(as), len(bs)) {
+		x, y := part(as, i), part(bs, i)
+		if x != y {
+			return x > y
+		}
+	}
+	return false
+}
+
+func part(parts []string, i int) int {
+	if i >= len(parts) {
+		return 0
+	}
+	n, _ := strconv.Atoi(parts[i])
+	return n
 }

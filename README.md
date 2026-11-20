@@ -168,11 +168,13 @@ burrow-G brings index files from older versions up to date itself, every time it
 
 - Each release that changes storage gets **one patch file**, e.g. `patch0_0_3.go`, holding
   every change that release needs, plus one line in `chain` in `patches.go`.
-- Patches run in order, once per file: the file's `PRAGMA user_version` counts how many it
-  has had. Each runs in a transaction, and the file is first backed up to `sessions.db.bak`.
+- The file stores its version in the `meta` table (`sqlite3 sessions.db "select * from meta"`);
+  a file without one is 0.0.1. Only patches newer than that version run, in order, each in a
+  transaction that also stores its version. The file is first backed up to `sessions.db.bak`.
+- A new file gets the latest version and no patches, so a patch only ever sees an older
+  file and can change it directly.
 - A file made by a newer burrow-G is refused with "please upgrade" instead of an SQL error.
-- Never change a released patch — fixes go in the next release's patch. Check before
-  changing anything (e.g. `dropColumn`), because brand-new files get every patch too.
+- Never change a released patch — fixes go in the next release's patch.
 
 New to Bubble Tea? [docs/bubbletea-cheatsheet.md](docs/bubbletea-cheatsheet.md) explains
 the model/update/view idea from scratch and walks through this codebase.

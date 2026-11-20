@@ -21,85 +21,159 @@ func rawDB(t *testing.T) *sql.DB {
 	return conn
 }
 
-func userVersion(t *testing.T, conn *sql.DB) int {
+func mustExec(t *testing.T, conn *sql.DB, query string) {
 	t.Helper()
-	var v int
-	if err := conn.QueryRow(`PRAGMA user_version`).Scan(&v); err != nil {
+	if _, err := conn.Exec(query); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func stored(t *testing.T, conn *sql.DB) string {
+	t.Helper()
+	var v string
+	if err := conn.QueryRow(`SELECT value FROM meta WHERE key = 'version'`).Scan(&v); err != nil {
 		t.Fatal(err)
 	}
 	return v
 }
 
-func TestRun_EachPatchOnceInOrder(t *testing.T) {
-	conn := rawDB(t)
-	var ran []string
-	chain := []Patch{
-		{"0.0.2", func(*sql.Tx) error { ran = append(ran, "0.0.2"); return nil }},
-		{"0.0.3", func(*sql.Tx) error { ran = append(ran, "0.0.3"); return nil }},
-	}
+type fake struct {
+	version string
+	invoke  func() error
+}
 
-	for range 2 {
-		if err := run(conn, chain); err != nil {
-			t.Fatal(err)
+func (f fake) Version() string { return f.version }
+
+func (f fake) Invoke() error {
+	if f.invoke == nil {
+		return nil
+	}
+	return f.invoke()
+}
+
+// recorder returns a chain of empty patches that note when they run.
+func recorder(ran *[]string, versions ...string) []Patch {
+	var chain []Patch
+	for _, v := range versions {
+		chain = append(chain, fake{v, func() error { *ran = append(*ran, v); return nil }})
+	}
+	return chain
+}
+
+func TestNewer(t *testing.T) {
+	tests := []struct {
+		a, b string
+		want bool
+	}{
+		{"0.0.2", "0.0.1", true},
+		{"0.0.1", "0.0.2", false},
+		{"0.0.2", "0.0.2", false},
+		{"0.0.10", "0.0.9", true},
+		{"0.1.0", "0.0.9", true},
+		{"1.0.0", "0.9.9", true},
+	}
+	for _, tt := range tests {
+		if got := newer(tt.a, tt.b); got != tt.want {
+			t.Errorf("newer(%s, %s) = %v, want %v", tt.a, tt.b, got, tt.want)
 		}
 	}
-	if strings.Join(ran, ",") != "0.0.2,0.0.3" {
-		t.Errorf("ran %v, want each patch once, in order", ran)
+}
+
+func TestChain_InReleaseOrder(t *testing.T) {
+	for i := 1; i < len(chain); i++ {
+		if !newer(chain[i].Version(), chain[i-1].Version()) {
+			t.Errorf("patch %s comes after %s", chain[i].Version(), chain[i-1].Version())
+		}
 	}
-	if v := userVersion(t, conn); v != 2 {
-		t.Errorf("user_version = %d, want 2", v)
+}
+
+func TestFrom(t *testing.T) {
+	chain := []Patch{fake{version: "0.0.2"}}
+
+	conn := rawDB(t)
+	if v, err := from(conn, chain); err != nil || v != "" {
+		t.Errorf("new file: from = %q, %v; want \"\"", v, err)
+	}
+
+	mustExec(t, conn, `CREATE TABLE sessions (id TEXT)`)
+	if v, err := from(conn, chain); err != nil || v != "0.0.1" {
+		t.Errorf("file with no version: from = %q, %v; want 0.0.1", v, err)
+	}
+
+	mustExec(t, conn, `CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+		INSERT INTO meta VALUES ('version', '0.0.2')`)
+	if v, err := from(conn, chain); err != nil || v != "0.0.2" {
+		t.Errorf("from = %q, %v; want 0.0.2", v, err)
+	}
+
+	mustExec(t, conn, `UPDATE meta SET value = '0.0.9'`)
+	if _, err := from(conn, chain); err == nil || !strings.Contains(err.Error(), "newer burrow-G") {
+		t.Errorf("newer file: err = %v, want a 'newer burrow-G' error", err)
+	}
+}
+
+func TestNeeded(t *testing.T) {
+	chain := []Patch{fake{version: "0.0.2"}}
+	for v, want := range map[string]bool{"": false, "0.0.1": true, "0.0.2": false} {
+		if got := needed(chain, v); got != want {
+			t.Errorf("needed(%q) = %v, want %v", v, got, want)
+		}
+	}
+}
+
+func TestRun_NewFileOnlyGetsVersion(t *testing.T) {
+	conn := rawDB(t)
+	var ran []string
+
+	if err := run(conn, recorder(&ran, "0.0.2", "0.0.3"), ""); err != nil {
+		t.Fatal(err)
+	}
+	if len(ran) != 0 {
+		t.Errorf("ran %v on a new file, want none", ran)
+	}
+	if v := stored(t, conn); v != "0.0.3" {
+		t.Errorf("version = %s, want 0.0.3", v)
+	}
+}
+
+func TestRun_OnlyNewerPatchesInOrder(t *testing.T) {
+	conn := rawDB(t)
+	var ran []string
+	chain := recorder(&ran, "0.0.2", "0.0.3", "0.0.4")
+
+	if err := run(conn, chain, "0.0.2"); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(ran, ",") != "0.0.3,0.0.4" {
+		t.Errorf("ran %v, want 0.0.3 then 0.0.4", ran)
+	}
+	if v := stored(t, conn); v != "0.0.4" {
+		t.Errorf("version = %s, want 0.0.4", v)
 	}
 }
 
 func TestRun_FailedPatchChangesNothing(t *testing.T) {
 	conn := rawDB(t)
 	chain := []Patch{
-		{"0.0.2", func(tx *sql.Tx) error { _, err := tx.Exec(`CREATE TABLE a (x)`); return err }},
-		{"0.0.3", func(tx *sql.Tx) error {
-			if _, err := tx.Exec(`CREATE TABLE b (x)`); err != nil {
+		fake{"0.0.2", func() error { return exec(`CREATE TABLE a (x)`) }},
+		fake{"0.0.3", func() error {
+			if err := exec(`CREATE TABLE b (x)`); err != nil {
 				return err
 			}
 			return errors.New("boom")
 		}},
 	}
 
-	err := run(conn, chain)
+	err := run(conn, chain, "0.0.1")
 	if err == nil || !strings.Contains(err.Error(), "0.0.3") {
 		t.Errorf("err = %v, want it to name patch 0.0.3", err)
 	}
-	if v := userVersion(t, conn); v != 1 {
-		t.Errorf("user_version = %d, want 1 (only 0.0.2)", v)
+	if v := stored(t, conn); v != "0.0.2" {
+		t.Errorf("version = %s, want 0.0.2", v)
 	}
 	var n int
 	conn.QueryRow(`SELECT COUNT(*) FROM sqlite_master WHERE name = 'b'`).Scan(&n)
 	if n != 0 {
 		t.Error("table b from the failed patch should have been rolled back")
-	}
-}
-
-func TestRun_RefusesNewerIndex(t *testing.T) {
-	conn := rawDB(t)
-	conn.Exec(`PRAGMA user_version = 5`)
-
-	err := run(conn, []Patch{{"0.0.2", func(*sql.Tx) error { return nil }}})
-	if err == nil || !strings.Contains(err.Error(), "newer burrow-G") {
-		t.Errorf("err = %v, want a 'newer burrow-G' error", err)
-	}
-}
-
-func TestPending(t *testing.T) {
-	conn := rawDB(t)
-	chain := []Patch{{"0.0.2", func(*sql.Tx) error { return nil }}}
-
-	if p, err := pending(conn, chain); err != nil || !p {
-		t.Errorf("new file: pending = %v, %v; want true", p, err)
-	}
-	run(conn, chain)
-	if p, err := pending(conn, chain); err != nil || p {
-		t.Errorf("after run: pending = %v, %v; want false", p, err)
-	}
-	conn.Exec(`PRAGMA user_version = 5`)
-	if _, err := pending(conn, chain); err == nil || !strings.Contains(err.Error(), "newer burrow-G") {
-		t.Errorf("newer file: err = %v, want a 'newer burrow-G' error", err)
 	}
 }
