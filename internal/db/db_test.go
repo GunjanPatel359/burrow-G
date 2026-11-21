@@ -1,10 +1,15 @@
 package db
 
 import (
+	"context"
+	"database/sql"
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/GunjanPatel359/burrow-G/internal/db/patches"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
 
@@ -17,7 +22,7 @@ var (
 
 func openTest(t *testing.T) *DB {
 	t.Helper()
-	d, err := Open(filepath.Join(t.TempDir(), "sub", "sessions.db"))
+	d, err := Open(filepath.Join(t.TempDir(), "sub", "sessions.db"), "0.0.2")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -205,5 +210,139 @@ func TestRefresh_EmptyListClears(t *testing.T) {
 	}
 	if got := ids(t, d, "claude"); len(got) != 0 {
 		t.Errorf("got %v, want none: every session is gone", got)
+	}
+}
+
+// oldFile makes an index file the way burrow-G 0.0.1 did. newer marks it as
+// made by a burrow-G newer than this one.
+func oldFile(t *testing.T, newer bool) string {
+	t.Helper()
+	path := filepath.Join(t.TempDir(), "sessions.db")
+	conn, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	_, err = conn.Exec(`CREATE TABLE sessions (agent TEXT NOT NULL, id TEXT NOT NULL, title TEXT NOT NULL,
+		dir TEXT NOT NULL, last_used INTEGER NOT NULL, bookmarked INTEGER NOT NULL DEFAULT 0, PRIMARY KEY (agent, id));
+		INSERT INTO sessions VALUES ('claude', 'kept', 'Kept', '/tmp', 1, 0)`)
+	if err == nil && newer {
+		_, err = conn.Exec(`CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+			INSERT INTO meta VALUES ('version', '999.0.0')`)
+	}
+	if err != nil {
+		t.Fatal(err)
+	}
+	return path
+}
+
+func TestOpen_PatchesOldFile(t *testing.T) {
+	d, err := Open(oldFile(t, false), "0.0.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+
+	var n int
+	d.sql.QueryRow(`SELECT COUNT(*) FROM pragma_table_info('sessions') WHERE name = 'bookmarked'`).Scan(&n)
+	if n != 0 {
+		t.Error("Open should have run the patches and dropped bookmarked")
+	}
+	if got := ids(t, d, "claude"); len(got) != 0 {
+		t.Errorf("rows = %v, want none until the next refresh", got)
+	}
+}
+
+func TestOpen_RefusesNewerFile(t *testing.T) {
+	path := oldFile(t, true)
+	if _, err := Open(path, "0.0.5"); err == nil || !strings.Contains(err.Error(), "newer burrow-G") || !strings.Contains(err.Error(), path) {
+		t.Errorf("err = %v, want a 'newer burrow-G' error naming the file", err)
+	}
+}
+
+func columnsOf(t *testing.T, path string) string {
+	t.Helper()
+	conn, err := sql.Open("sqlite", path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer conn.Close()
+	var cols string
+	if err := conn.QueryRow(`SELECT group_concat(name) FROM pragma_table_info('sessions')`).Scan(&cols); err != nil {
+		t.Fatal(err)
+	}
+	return cols
+}
+
+func TestOpen_BacksUpBeforePatching(t *testing.T) {
+	path := oldFile(t, false)
+	os.WriteFile(path+".bak", []byte("an older backup"), 0o644)
+
+	d, err := Open(path, "0.0.2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	d.Close()
+
+	if cols := columnsOf(t, path+".bak"); !strings.Contains(cols, "bookmarked") {
+		t.Errorf("backup columns = %q, want the file as it was before patching", cols)
+	}
+}
+
+func TestOpen_NoBackupWhenNothingToPatch(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sessions.db")
+	for _, version := range []string{"0.0.2", "0.0.5"} { // new, then a release with no patches
+		d, err := Open(path, version)
+		if err != nil {
+			t.Fatal(err)
+		}
+		d.Close()
+	}
+	if _, err := os.Stat(path + ".bak"); err == nil {
+		t.Error("no patch ran, so there should be no backup")
+	}
+}
+
+func TestOpen_EmptyFileIsNew(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "sessions.db")
+	os.WriteFile(path, nil, 0o644)
+
+	d, err := Open(path, "0.0.2")
+	if err != nil {
+		t.Fatalf("an empty file should open as a new one: %v", err)
+	}
+	d.Close()
+	if _, err := os.Stat(path + ".bak"); err == nil {
+		t.Error("an empty file has nothing to back up")
+	}
+}
+
+func storedVersion(t *testing.T, path, version string) string {
+	t.Helper()
+	d, err := Open(path, version)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer d.Close()
+	v, err := patches.GetPatchVersion(context.Background(), d.sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return v
+}
+
+func TestOpen_NewFileGetsAppVersion(t *testing.T) {
+	if v := storedVersion(t, filepath.Join(t.TempDir(), "sessions.db"), "0.0.5"); v != "0.0.5" {
+		t.Errorf("version = %s, want 0.0.5", v)
+	}
+}
+
+func TestOpen_UpgradeStoresAppVersion(t *testing.T) {
+	path := oldFile(t, false)
+	if v := storedVersion(t, path, "0.0.5"); v != "0.0.5" {
+		t.Errorf("version = %s, want 0.0.5 after patching", v)
+	}
+	if v := storedVersion(t, path, "0.0.5"); v != "0.0.5" {
+		t.Errorf("second open: version = %s, want 0.0.5", v)
 	}
 }

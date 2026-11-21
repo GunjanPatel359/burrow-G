@@ -7,6 +7,10 @@
 - Bookmarks: press `b` on a session to keep it at the top of its agent's list (★); press `b`
   again to remove it. Bookmarks survive refreshes and restarts, and go away with their
   session when it is deleted.
+- Index files from older versions are brought up to date automatically when burrow-G starts,
+  after a backup to `sessions.db.bak`. An older burrow-G opening a newer index now says to
+  upgrade instead of failing with an SQL error. A 0.0.1 index holds nothing that can't be
+  rebuilt, so it is cleared and refilled from the agents' files on the first refresh.
 - `sudo burrow-g` lists and resumes sessions that agents saved under root. Run
   `burrow-g setup-sudo` once so sudo can find burrow-G and your agents. Under sudo,
   burrow-G uses root's home even if `HOME` still points at yours, so it never writes
