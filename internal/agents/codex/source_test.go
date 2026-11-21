@@ -1,6 +1,7 @@
 package codex
 
 import (
+	"errors"
 	"slices"
 	"testing"
 
@@ -36,9 +37,8 @@ func TestList(t *testing.T) {
 }
 
 func TestList_NoSessionsFolder(t *testing.T) {
-	got, err := Source{Home: t.TempDir()}.List()
-	if err != nil || len(got) != 0 {
-		t.Errorf("got %v, %v; want empty list and no error", got, err)
+	if _, err := (Source{Home: t.TempDir()}).List(); !errors.Is(err, session.ErrMissing) {
+		t.Errorf("err = %v, want session.ErrMissing", err)
 	}
 }
 

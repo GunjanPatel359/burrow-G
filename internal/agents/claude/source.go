@@ -17,6 +17,9 @@ type Source struct {
 func (Source) Name() string { return "claude" }
 
 func (c Source) List() ([]session.Session, error) {
+	if _, err := os.Stat(filepath.Join(c.Home, "projects")); os.IsNotExist(err) {
+		return nil, session.ErrMissing
+	}
 	files, err := filepath.Glob(filepath.Join(c.Home, "projects", "*", "*.jsonl"))
 	if err != nil {
 		return nil, err

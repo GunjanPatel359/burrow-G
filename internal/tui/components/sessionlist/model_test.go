@@ -99,3 +99,34 @@ func TestSearchMatchesFolder(t *testing.T) {
 		t.Errorf("searching a folder name should find it, got %+v", s)
 	}
 }
+
+func TestSelect(t *testing.T) {
+	a := session.Session{Agent: "claude", ID: "a", LastUsed: now}
+	b := session.Session{Agent: "claude", ID: "b", LastUsed: now}
+	c := session.Session{Agent: "claude", ID: "c", LastUsed: now}
+	m := newTest(60, a, b, c)
+
+	m.Select(c.Key())
+	if s, _ := m.Selected(); s.ID != "c" {
+		t.Errorf("Select(c) left the cursor on %q", s.ID)
+	}
+	m.Select("claude:gone")
+	if s, _ := m.Selected(); s.ID != "c" {
+		t.Errorf("Select(unknown) moved the cursor to %q", s.ID)
+	}
+}
+
+func TestSetSessions_KeepsSearchResults(t *testing.T) {
+	one := session.Session{ID: "a", Title: "One", Dir: "/home/u/alpha", LastUsed: now}
+	two := session.Session{ID: "b", Title: "Two", Dir: "/home/u/beta", LastUsed: now}
+	m := newTest(60, one, two)
+	for _, r := range "/beta" {
+		m = send(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	m = send(m, tea.KeyMsg{Type: tea.KeyEnter})
+
+	m.SetSessions([]session.Session{one, two})
+	if s, ok := m.Selected(); !ok || s.ID != "b" {
+		t.Errorf("after reloading, the search should still show beta; selected %+v, %v", s, ok)
+	}
+}

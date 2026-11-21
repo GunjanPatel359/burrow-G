@@ -26,3 +26,10 @@ func refresh(store *db.DB, src session.Source) tea.Cmd {
 		return refreshedMsg{agent: src.Name(), err: store.Refresh(src)}
 	}
 }
+
+// bookmark turns a session's bookmark on or off.
+func bookmark(store *db.DB, s session.Session, on bool) tea.Cmd {
+	return func() tea.Msg {
+		return bookmarkedMsg{s: s, on: on, err: store.SetBookmark(s, on)}
+	}
+}

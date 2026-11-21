@@ -20,7 +20,9 @@ type Source struct {
 func (Source) Name() string { return "copilot" }
 
 func (c Source) List() ([]session.Session, error) {
-	if _, err := os.Stat(c.DBPath); err != nil {
+	if _, err := os.Stat(c.DBPath); os.IsNotExist(err) {
+		return nil, session.ErrMissing
+	} else if err != nil {
 		return nil, err
 	}
 

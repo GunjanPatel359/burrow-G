@@ -75,7 +75,7 @@ func run(cmd tea.Cmd) []tea.Msg {
 func deliver(m model, cmd tea.Cmd) model {
 	for _, msg := range run(cmd) {
 		switch msg.(type) {
-		case refreshedMsg, openedMsg, agentlist.SelectedMsg:
+		case refreshedMsg, openedMsg, bookmarkedMsg, agentlist.SelectedMsg:
 			next, more := m.Update(msg)
 			m = deliver(next.(model), more)
 		}
@@ -239,5 +239,94 @@ func TestNewTabRefusesMissingFolder(t *testing.T) {
 	}
 	if !strings.Contains(m.View(), "folder no longer exists") {
 		t.Errorf("status should explain why:\n%s", m.View())
+	}
+}
+
+var bKey = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("b")}
+
+// twoSessions shows "Newer" above "Older" with the sessions pane focused.
+func twoSessions(t *testing.T) (model, *db.DB) {
+	t.Helper()
+	store, err := db.Open(filepath.Join(t.TempDir(), "sessions.db"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { store.Close() })
+
+	claude := fakeSource{name: "claude", list: []session.Session{
+		{Agent: "claude", ID: "new", Title: "Newer", Dir: "/tmp", LastUsed: time.Now()},
+		{Agent: "claude", ID: "old", Title: "Older", Dir: "/tmp", LastUsed: time.Now().Add(-time.Hour)},
+	}}
+	m := newModel(store, []session.Source{claude}, "/home/u", nil)
+	m = deliver(m, m.Init())
+	m, _ = press(m, enter)
+	return m, store
+}
+
+func firstRow(m model) string { return strings.Split(m.sessions.View(), "\n")[0] }
+
+func TestBookmarkMovesToTopAndBack(t *testing.T) {
+	m, _ := twoSessions(t)
+	m, _ = press(m, down)
+
+	m, cmd := press(m, bKey)
+	m = deliver(m, cmd)
+	if s, _ := m.sessions.Selected(); s.ID != "old" || !s.Bookmarked {
+		t.Errorf("cursor should stay on Older, now bookmarked; got %+v", s)
+	}
+	if row := firstRow(m); !strings.Contains(row, "★") || !strings.Contains(row, "Older") {
+		t.Errorf("Older should be on top with ★: %q", row)
+	}
+	if !strings.Contains(m.View(), "bookmarked") {
+		t.Errorf("status should say it was bookmarked:\n%s", m.View())
+	}
+
+	m, cmd = press(m, bKey)
+	m = deliver(m, cmd)
+	if s, _ := m.sessions.Selected(); s.ID != "old" || s.Bookmarked {
+		t.Errorf("cursor should stay on Older, no longer bookmarked; got %+v", s)
+	}
+	if row := firstRow(m); strings.Contains(row, "★") || !strings.Contains(row, "Newer") {
+		t.Errorf("Newer should be back on top: %q", row)
+	}
+}
+
+func TestBookmarkSurvivesRefreshAndRestart(t *testing.T) {
+	m, store := twoSessions(t)
+	m, _ = press(m, down)
+	m, cmd := press(m, bKey)
+	m = deliver(m, cmd)
+
+	m, cmd = press(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("r")})
+	m = deliver(m, cmd)
+	if row := firstRow(m); !strings.Contains(row, "★") || !strings.Contains(row, "Older") {
+		t.Errorf("after refresh: %q", row)
+	}
+
+	again := newModel(store, m.sources, "/home/u", nil)
+	if row := firstRow(again); !strings.Contains(row, "★") || !strings.Contains(row, "Older") {
+		t.Errorf("after restart: %q", row)
+	}
+}
+
+func TestBookmarkIgnoredWhileSearchingOrInAgents(t *testing.T) {
+	m, store := twoSessions(t)
+	m, _ = press(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
+	m, cmd := press(m, bKey)
+	m = deliver(m, cmd)
+	if !m.sessions.Searching() {
+		t.Error("b while searching should be typed into the search box")
+	}
+
+	m, _ = twoSessions(t)
+	m, _ = press(m, tea.KeyMsg{Type: tea.KeyLeft})
+	m, cmd = press(m, bKey)
+	m = deliver(m, cmd)
+
+	list, _ := store.List("claude")
+	for _, s := range list {
+		if s.Bookmarked {
+			t.Errorf("%s got bookmarked", s.ID)
+		}
 	}
 }
