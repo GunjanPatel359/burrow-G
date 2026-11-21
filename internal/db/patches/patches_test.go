@@ -99,8 +99,8 @@ func TestChain_InReleaseOrder(t *testing.T) {
 func TestGetPatchVersion(t *testing.T) {
 	ctx := context.Background()
 	conn := rawDB(t)
-	if v, err := GetPatchVersion(ctx, conn); err != nil || v != "0.0.1" {
-		t.Errorf("missing table: version = %q, %v; want 0.0.1", v, err)
+	if v, err := GetPatchVersion(ctx, conn); err != nil || v != LatestVersion() {
+		t.Errorf("new file: version = %q, %v; want %s", v, err, LatestVersion())
 	}
 
 	mustExec(t, conn, `CREATE TABLE sessions (id TEXT)`)
@@ -161,8 +161,22 @@ func TestRun_OnlyRunsIfNeeded(t *testing.T) {
 	}
 }
 
+func TestRun_NewFileRunsNothing(t *testing.T) {
+	conn := rawDB(t)
+	var ran []string
+	useChain(t, recorder(&ran, "0.0.2", "0.0.3"))
+
+	if err := Run(context.Background(), conn); err != nil {
+		t.Fatal(err)
+	}
+	if len(ran) != 0 {
+		t.Errorf("ran %v on a new file, want none", ran)
+	}
+}
+
 func TestRun_DefaultVersionRunsNewerPatches(t *testing.T) {
 	conn := rawDB(t)
+	mustExec(t, conn, `CREATE TABLE sessions (id TEXT)`)
 	var ran []string
 	useChain(t, recorder(&ran, "0.0.1", "0.0.2", "0.0.3"))
 
@@ -197,6 +211,7 @@ func TestRun_OnlyNewerPatchesInOrder(t *testing.T) {
 
 func TestRun_FailedPatchChangesNothing(t *testing.T) {
 	conn := rawDB(t)
+	mustExec(t, conn, `CREATE TABLE sessions (id TEXT)`)
 	useChain(t, []Patch{
 		fake{"0.0.2", func(ctx context.Context, pct PatchContext) error {
 			_, err := pct.Tx.ExecContext(ctx, `CREATE TABLE a (x)`)

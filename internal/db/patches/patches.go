@@ -59,27 +59,40 @@ func executePatch(ctx context.Context, conn *sql.DB, p Patch) error {
 	if err := p.Invoke(ctx, PatchContext{Tx: tx}); err != nil {
 		return err
 	}
-	if _, err := tx.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-		INSERT OR REPLACE INTO meta (key, value) VALUES ('version', ?)`, p.Version()); err != nil {
+	if err := saveVersion(ctx, tx, p.Version()); err != nil {
 		return err
 	}
 	return tx.Commit()
 }
 
-// GetPatchVersion returns the stored version, defaulting to 0.0.1 if absent.
+// saveVersion stores the file's version inside tx.
+func saveVersion(ctx context.Context, tx *sql.Tx, version string) error {
+	_, err := tx.ExecContext(ctx, `CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+		INSERT OR REPLACE INTO meta (key, value) VALUES ('version', ?)`, version)
+	return err
+}
+
+// GetPatchVersion returns the stored version. A new file, with no tables yet,
+// is on the latest; a file from before versions were stored is on 0.0.1.
 func GetPatchVersion(ctx context.Context, conn *sql.DB) (string, error) {
-	var version string
-	err := conn.QueryRowContext(ctx, `SELECT value FROM meta WHERE key = 'version'`).Scan(&version)
-	if err == nil {
-		return version, nil
+	var tables, meta int
+	err := conn.QueryRowContext(ctx, `SELECT COUNT(*), COUNT(*) FILTER (WHERE name = 'meta')
+		FROM sqlite_master WHERE type = 'table'`).Scan(&tables, &meta)
+	if err != nil {
+		return "", err
 	}
+	if tables == 0 {
+		return LatestVersion(), nil
+	}
+	if meta == 0 {
+		return "0.0.1", nil
+	}
+	var version string
+	err = conn.QueryRowContext(ctx, `SELECT value FROM meta WHERE key = 'version'`).Scan(&version)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "0.0.1", nil
 	}
-	if strings.Contains(err.Error(), "no such table: meta") {
-		return "0.0.1", nil
-	}
-	return "", err
+	return version, err
 }
 
 // VersionCheck reports whether version a is greater than version b.
