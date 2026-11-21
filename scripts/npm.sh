@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the npm packages from the release archives in ./dist (run `make dist VERSION=x.y.z` first).
+# Build the npm packages from the release archives in ./dist (run `make dist` first).
 #
 #   scripts/npm.sh build 0.0.1     → npm/dist/<package>/
 #   scripts/npm.sh publish 0.0.1   → npm publish, platform packages first

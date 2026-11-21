@@ -66,7 +66,7 @@ func main() {
 		codex.Source{Home: filepath.Join(home, ".codex")},
 	}
 
-	store, err := db.Open(filepath.Join(helpers.DataDir(home), "sessions.db"))
+	store, err := db.Open(filepath.Join(helpers.DataDir(home), "sessions.db"), version)
 	if err != nil {
 		fail(err)
 	}

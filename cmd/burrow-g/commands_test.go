@@ -49,7 +49,7 @@ func (f fakeSource) ResumeCommand(session.Session) []string { return nil }
 func (f fakeSource) Delete(session.Session, string) error   { return nil }
 
 func TestRefreshAll_SkipsBrokenSource(t *testing.T) {
-	store, err := db.Open(filepath.Join(t.TempDir(), "sessions.db"))
+	store, err := db.Open(filepath.Join(t.TempDir(), "sessions.db"), "0.0.2")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -70,7 +70,7 @@ func TestRefreshAll_SkipsBrokenSource(t *testing.T) {
 }
 
 func TestPickSession(t *testing.T) {
-	store, err := db.Open(filepath.Join(t.TempDir(), "sessions.db"))
+	store, err := db.Open(filepath.Join(t.TempDir(), "sessions.db"), "0.0.2")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -104,23 +104,7 @@ func TestUsage(t *testing.T) {
 }
 
 func TestVersionString(t *testing.T) {
-	if got := versionString(); got != "burrow-G dev" {
-		t.Errorf("versionString() = %q, want %q", got, "burrow-G dev")
-	}
-}
-
-func TestVersionFrom(t *testing.T) {
-	cases := []struct {
-		stamped, module, want string
-	}{
-		{"0.0.1", "", "burrow-G 0.0.1"},
-		{"dev", "v0.0.2", "burrow-G 0.0.2"},
-		{"dev", "(devel)", "burrow-G dev"},
-		{"dev", "", "burrow-G dev"},
-	}
-	for _, c := range cases {
-		if got := versionFrom(c.stamped, c.module); got != c.want {
-			t.Errorf("versionFrom(%q, %q) = %q, want %q", c.stamped, c.module, got, c.want)
-		}
+	if got := versionString(); got != "burrow-G "+version {
+		t.Errorf("versionString() = %q, want %q", got, "burrow-G "+version)
 	}
 }

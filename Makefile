@@ -1,5 +1,5 @@
-VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
-LDFLAGS := -s -w -X main.version=$(VERSION)
+VERSION := $(shell sed -n 's/^const version = "\(.*\)"/\1/p' cmd/burrow-g/commands.go)
+LDFLAGS := -s -w
 
 PLATFORMS := linux/amd64 linux/arm64 darwin/amd64 darwin/arm64
 
@@ -22,7 +22,7 @@ fmt:              ## fail if any file needs gofmt
 
 check: fmt vet test
 
-dist: check     ## release archives + checksums in ./dist (VERSION=x.y.z)
+dist: check     ## release archives + checksums in ./dist (version from cmd/burrow-g/commands.go)
 	rm -rf dist && mkdir -p dist
 	@for p in $(PLATFORMS); do \
 		os=$${p%/*}; arch=$${p#*/}; dir=dist/burrow-g_$(VERSION)_$${os}_$${arch}; \
