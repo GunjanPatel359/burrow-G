@@ -2,6 +2,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -54,22 +55,46 @@ func Open(path string) (*DB, error) {
 	return &DB{sql: conn}, nil
 }
 
-// prepare backs up a file that needs patches, before anything changes it,
-// then creates missing tables and runs the patches.
+// prepare initializes a new database, or backs up an older one before
+// creating missing tables and running its patches.
 func prepare(conn *sql.DB, path string) error {
-	version, err := patches.From(conn)
+	ctx := context.Background()
+	version, err := patches.GetPatchVersion(ctx, conn)
 	if err != nil {
 		return err
 	}
-	if patches.Needed(version) {
+	latest := patches.LatestVersion()
+	if patches.VersionCheck(version, latest) {
+		return fmt.Errorf("the index was made by a newer burrow-G (version %s, this one knows up to %s), please upgrade burrow-G", version, latest)
+	}
+
+	var n int
+	if err := conn.QueryRowContext(ctx, `SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'sessions'`).Scan(&n); err != nil {
+		return err
+	}
+	if n == 0 {
+		tx, err := conn.BeginTx(ctx, nil)
+		if err != nil {
+			return err
+		}
+		defer tx.Rollback()
+		if _, err := tx.ExecContext(ctx, schema+`
+			CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+			INSERT OR REPLACE INTO meta (key, value) VALUES ('version', ?)`, latest); err != nil {
+			return err
+		}
+		return tx.Commit()
+	}
+
+	if patches.VersionCheck(latest, version) {
 		if err := backup(conn, path+".bak"); err != nil {
 			return fmt.Errorf("backup: %w", err)
 		}
 	}
-	if _, err := conn.Exec(schema); err != nil {
+	if _, err := conn.ExecContext(ctx, schema); err != nil {
 		return err
 	}
-	return patches.Run(conn, version)
+	return patches.Run(ctx, conn)
 }
 
 // backup writes a copy of the database to path, replacing an older backup.

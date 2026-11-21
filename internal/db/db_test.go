@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GunjanPatel359/burrow-G/internal/db/patches"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
 
@@ -299,5 +301,16 @@ func TestOpen_EmptyFileIsNew(t *testing.T) {
 	d.Close()
 	if _, err := os.Stat(path + ".bak"); err == nil {
 		t.Error("an empty file has nothing to back up")
+	}
+}
+
+func TestOpen_NewFileGetsLatestVersion(t *testing.T) {
+	d := openTest(t)
+	version, err := patches.GetPatchVersion(context.Background(), d.sql)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if version != patches.LatestVersion() {
+		t.Errorf("version = %s, want %s", version, patches.LatestVersion())
 	}
 }
