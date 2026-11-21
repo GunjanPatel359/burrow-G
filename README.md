@@ -130,10 +130,10 @@ there, and resumes in the same terminal instead of opening a new tab.
 - Each agent has a small reader in `internal/agents/<agent>/` that turns its files into a
   common `Session` (agent, id, title, folder, last used).
 - burrow-G keeps an index in `~/.local/share/burrow-g/sessions.db` (SQLite). The UI shows that
-  index instantly and refreshes the selected agent in the background. A refresh that finds no
-  sessions at all leaves the index as it is.
-- Bookmarks live in their own table, so refreshing never touches them. A bookmarked session
-  that disappears is hidden, and comes back with its ★ if the session returns.
+  index instantly and refreshes the selected agent in the background. If an agent's folder is
+  missing, a refresh leaves its list as it is.
+- Bookmarks live in their own table, so refreshing keeps them. When a bookmarked session is
+  deleted, its bookmark goes with it.
 - Resuming changes into the session's folder and replaces burrow-G with the agent's own
   command, so when you quit the agent you are back at your normal prompt.
 - Nothing leaves your machine.

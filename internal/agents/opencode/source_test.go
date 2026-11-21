@@ -2,6 +2,7 @@ package opencode
 
 import (
 	"database/sql"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -46,8 +47,8 @@ func TestList(t *testing.T) {
 func TestList_MissingDB(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nope.db")
 
-	if _, err := (Source{DBPath: path}).List(); err == nil {
-		t.Error("want an error for a missing DB")
+	if _, err := (Source{DBPath: path}).List(); !errors.Is(err, session.ErrMissing) {
+		t.Errorf("err = %v, want session.ErrMissing", err)
 	}
 	if _, err := os.Stat(path); !os.IsNotExist(err) {
 		t.Error("List must not create the DB file")

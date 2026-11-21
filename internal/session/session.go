@@ -2,9 +2,14 @@
 package session
 
 import (
+	"errors"
 	"slices"
 	"time"
 )
+
+// ErrMissing is returned by List when the agent's files aren't there: it isn't
+// installed, or its folder can't be reached right now.
+var ErrMissing = errors.New("agent files not found")
 
 type Session struct {
 	Agent      string
