@@ -90,20 +90,17 @@ func TestSetBookmark_OnAndOff(t *testing.T) {
 	}
 }
 
-func TestBookmark_HiddenWhileGoneBackWhenReturns(t *testing.T) {
+func TestSave_DropsBookmarksOfGoneSessions(t *testing.T) {
 	d := openTest(t)
 	d.Save("claude", []session.Session{older, newer})
 	d.SetBookmark(older, true)
+	d.SetBookmark(session.Session{Agent: "codex", ID: "other"}, true)
 
 	d.Save("claude", []session.Session{newer})
-	if got := ids(t, d, "claude"); len(got) != 1 || got[0] != "new" {
-		t.Errorf("while gone: got %v, want [new]", got)
-	}
-
-	d.Save("claude", []session.Session{older, newer})
-	list, _ := d.List("claude")
-	if list[0].ID != "old" || !list[0].Bookmarked {
-		t.Errorf("after it returns: first = %+v, want old and bookmarked", list[0])
+	var n int
+	d.sql.QueryRow(`SELECT COUNT(*) FROM bookmarks`).Scan(&n)
+	if n != 1 {
+		t.Errorf("bookmarks = %d, want only codex's left", n)
 	}
 }
 
@@ -171,10 +168,13 @@ func TestFind(t *testing.T) {
 	}
 }
 
-type fakeSource struct{ list []session.Session }
+type fakeSource struct {
+	list []session.Session
+	err  error
+}
 
 func (fakeSource) Name() string                           { return "claude" }
-func (f fakeSource) List() ([]session.Session, error)     { return f.list, nil }
+func (f fakeSource) List() ([]session.Session, error)     { return f.list, f.err }
 func (fakeSource) ResumeCommand(session.Session) []string { return nil }
 func (fakeSource) Delete(session.Session, string) error   { return nil }
 
@@ -188,15 +188,28 @@ func TestRefresh(t *testing.T) {
 	}
 }
 
-func TestSave_EmptyListKeepsRows(t *testing.T) {
+func TestRefresh_MissingFolderKeepsRows(t *testing.T) {
+	d := openTest(t)
+	d.Save("claude", []session.Session{older, newer})
+	d.SetBookmark(older, true)
+
+	if err := d.Refresh(fakeSource{err: session.ErrMissing}); err != nil {
+		t.Errorf("a missing folder is not an error: %v", err)
+	}
+	if list, _ := d.List("claude"); len(list) != 2 || !list[0].Bookmarked {
+		t.Errorf("a missing folder changed the list: %+v", list)
+	}
+}
+
+func TestRefresh_EmptyListClears(t *testing.T) {
 	d := openTest(t)
 	d.Save("claude", []session.Session{older, newer})
 
-	if err := d.Save("claude", nil); err != nil {
+	if err := d.Refresh(fakeSource{}); err != nil {
 		t.Fatal(err)
 	}
-	if got := ids(t, d, "claude"); len(got) != 2 {
-		t.Errorf("an empty list wiped the rows: got %v", got)
+	if got := ids(t, d, "claude"); len(got) != 0 {
+		t.Errorf("got %v, want none: every session is gone", got)
 	}
 }
 

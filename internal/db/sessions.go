@@ -2,17 +2,15 @@ package db
 
 import (
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
 
-// Save replaces one agent's sessions. An empty list changes nothing, so a
-// folder that is missing for a moment can't wipe the list.
+// Save replaces one agent's sessions and drops the bookmarks of sessions that
+// are gone.
 func (d *DB) Save(agent string, list []session.Session) error {
-	if len(list) == 0 {
-		return nil
-	}
 	tx, err := d.sql.Begin()
 	if err != nil {
 		return err
@@ -30,6 +28,10 @@ func (d *DB) Save(agent string, list []session.Session) error {
 		if err != nil {
 			return err
 		}
+	}
+	_, err = tx.Exec(`DELETE FROM bookmarks WHERE agent = ? AND id NOT IN (SELECT id FROM sessions WHERE agent = ?)`, agent, agent)
+	if err != nil {
+		return err
 	}
 	return tx.Commit()
 }
@@ -112,17 +114,22 @@ func (d *DB) Remove(s session.Session) error {
 	}
 	defer tx.Rollback()
 
-	for _, table := range []string{"sessions", "bookmarks"} {
-		if _, err := tx.Exec(`DELETE FROM `+table+` WHERE agent = ? AND id = ?`, s.Agent, s.ID); err != nil {
-			return err
-		}
+	if _, err := tx.Exec(`DELETE FROM sessions WHERE agent = ? AND id = ?`, s.Agent, s.ID); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(`DELETE FROM bookmarks WHERE agent = ? AND id = ?`, s.Agent, s.ID); err != nil {
+		return err
 	}
 	return tx.Commit()
 }
 
-// Refresh reloads one agent's sessions from its files into the database.
+// Refresh reloads one agent's sessions from its files into the database. If
+// the files aren't there, the list is kept as it is.
 func (d *DB) Refresh(src session.Source) error {
 	list, err := src.List()
+	if errors.Is(err, session.ErrMissing) {
+		return nil
+	}
 	if err != nil {
 		return err
 	}

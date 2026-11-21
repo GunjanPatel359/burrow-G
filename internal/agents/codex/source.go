@@ -26,7 +26,7 @@ func (Source) Name() string { return "codex" }
 func (c Source) List() ([]session.Session, error) {
 	dir := filepath.Join(c.Home, "sessions")
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return nil, nil
+		return nil, session.ErrMissing
 	}
 
 	names := threadNames(filepath.Join(c.Home, "session_index.jsonl"))

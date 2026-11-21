@@ -1,6 +1,7 @@
 package qoder
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -71,5 +72,11 @@ func copyFile(t *testing.T, from, to string) {
 	}
 	if err := os.WriteFile(to, data, 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestList_MissingFolder(t *testing.T) {
+	if _, err := (Source{Home: filepath.Join(t.TempDir(), "nope")}).List(); !errors.Is(err, session.ErrMissing) {
+		t.Errorf("err = %v, want session.ErrMissing", err)
 	}
 }

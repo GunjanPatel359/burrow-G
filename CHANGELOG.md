@@ -5,7 +5,8 @@
 ### Added
 
 - Bookmarks: press `b` on a session to keep it at the top of its agent's list (★); press `b`
-  again to remove it. Bookmarks survive refreshes and restarts.
+  again to remove it. Bookmarks survive refreshes and restarts, and go away with their
+  session when it is deleted.
 - Index files from older versions are brought up to date automatically when burrow-G starts,
   after a backup to `sessions.db.bak`. An older burrow-G opening a newer index now says to
   upgrade instead of failing with an SQL error. A 0.0.1 index holds nothing that can't be
@@ -17,8 +18,8 @@
 
 ### Fixed
 
-- A refresh that finds no sessions (for example while a folder is missing) no longer empties
-  the list.
+- A refresh while an agent's folder is missing no longer empties its list; a refresh that
+  finds the folder with no sessions in it does.
 - Refreshing while a search is applied no longer shows an empty list.
 - `burrow-g version` showed `dev` when installed with `go install`; it now shows the
   real version.
