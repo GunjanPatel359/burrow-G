@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"runtime/debug"
-	"strings"
 	"text/tabwriter"
 	"time"
 
@@ -13,24 +11,10 @@ import (
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
 
-// version is set at build time: go build -ldflags "-X main.version=0.0.1".
-var version = "dev"
+// version is this release; change it before tagging a new one.
+const version = "0.0.2"
 
-func versionString() string {
-	module := ""
-	if info, ok := debug.ReadBuildInfo(); ok {
-		module = info.Main.Version
-	}
-	return versionFrom(version, module)
-}
-
-// versionFrom prefers the -ldflags version, then the one go install records.
-func versionFrom(stamped, module string) string {
-	if stamped == "dev" && module != "" && module != "(devel)" {
-		stamped = strings.TrimPrefix(module, "v")
-	}
-	return "burrow-G " + stamped
-}
+func versionString() string { return "burrow-G " + version }
 
 const usage = `burrow-G — find and resume your AI coding agent sessions.
 

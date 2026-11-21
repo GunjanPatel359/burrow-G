@@ -33,7 +33,7 @@ func testModel(t *testing.T) (model, *db.DB) {
 // testModelWith builds the app with a terminal (nil = none) and the folder sessions live in.
 func testModelWith(t *testing.T, term launch.Terminal, dir string) (model, *db.DB) {
 	t.Helper()
-	store, err := db.Open(filepath.Join(t.TempDir(), "sessions.db"))
+	store, err := db.Open(filepath.Join(t.TempDir(), "sessions.db"), "0.0.2")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -247,7 +247,7 @@ var bKey = tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("b")}
 // twoSessions shows "Newer" above "Older" with the sessions pane focused.
 func twoSessions(t *testing.T) (model, *db.DB) {
 	t.Helper()
-	store, err := db.Open(filepath.Join(t.TempDir(), "sessions.db"))
+	store, err := db.Open(filepath.Join(t.TempDir(), "sessions.db"), "0.0.2")
 	if err != nil {
 		t.Fatal(err)
 	}
