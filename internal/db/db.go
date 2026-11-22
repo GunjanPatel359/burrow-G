@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS bookmarks (
 	agent TEXT NOT NULL,
 	id    TEXT NOT NULL,
 	PRIMARY KEY (agent, id)
-);`
+);
+CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);`
 
 type DB struct {
 	sql *sql.DB

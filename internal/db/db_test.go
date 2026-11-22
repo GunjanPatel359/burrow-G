@@ -346,3 +346,15 @@ func TestOpen_UpgradeStoresAppVersion(t *testing.T) {
 		t.Errorf("second open: version = %s, want 0.0.5", v)
 	}
 }
+
+func TestSettings(t *testing.T) {
+	d := openTest(t)
+	if v, err := d.Setting("theme"); err != nil || v != "" {
+		t.Errorf("unset: %q, %v; want empty", v, err)
+	}
+	d.SetSetting("theme", "nord")
+	d.SetSetting("theme", "dracula")
+	if v, _ := d.Setting("theme"); v != "dracula" {
+		t.Errorf("theme = %q, want dracula", v)
+	}
+}
