@@ -1,5 +1,10 @@
 # burrow-G
 
+[![npm](https://img.shields.io/npm/v/burrow-g)](https://www.npmjs.com/package/burrow-g)
+[![go](https://img.shields.io/github/go-mod/go-version/GunjanPatel359/burrow-G)](go.mod)
+[![ci](https://img.shields.io/github/actions/workflow/status/GunjanPatel359/burrow-G/ci.yml?branch=main&label=ci)](https://github.com/GunjanPatel359/burrow-G/actions/workflows/ci.yml)
+[![license](https://img.shields.io/github/license/GunjanPatel359/burrow-G)](LICENSE)
+
 **Find and resume your AI coding agent sessions — across every agent and every project — from one terminal UI.**
 
 ```
