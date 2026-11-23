@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"github.com/GunjanPatel359/burrow-G/internal/db"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
@@ -106,5 +107,25 @@ func TestUsage(t *testing.T) {
 func TestVersionString(t *testing.T) {
 	if got := versionString(); got != "burrow-G "+version {
 		t.Errorf("versionString() = %q, want %q", got, "burrow-G "+version)
+	}
+}
+
+func TestUsageKeyColumnsAligned(t *testing.T) {
+	_, ui, _ := strings.Cut(usage, "In the UI:\n")
+	ui, _, _ = strings.Cut(ui, "\n\n")
+	field := regexp.MustCompile(`\S+( \S+)*`)
+	col := -1
+	for _, row := range strings.Split(ui, "\n") {
+		idx := field.FindAllStringIndex(row, -1)
+		if len(idx) < 3 {
+			t.Fatalf("row %q has fewer than 3 columns", row)
+		}
+		c := utf8.RuneCountInString(row[:idx[2][0]])
+		if col == -1 {
+			col = c
+		}
+		if c != col {
+			t.Errorf("row %q: second key at column %d, want %d", row, c, col)
+		}
 	}
 }

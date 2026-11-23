@@ -4,6 +4,12 @@
 
 ### Added
 
+- Command bar: press `ctrl+k` for `theme`, `refresh`, `help` and `quit`. Arguments use
+  `@tag:value` and quotes for spaces.
+- 16 new colour themes, four of them light (17 in all, see the README). `theme <name>`
+  previews live and the choice is remembered. A theme also sets the terminal's background
+  while burrow-G runs; the original comes back on quit.
+- The `/ search` line is always visible above the sessions list.
 - Bookmarks: press `b` on a session to keep it at the top of its agent's list (★); press `b`
   again to remove it. Bookmarks survive refreshes and restarts, and go away with their
   session when it is deleted.
