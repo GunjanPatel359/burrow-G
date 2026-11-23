@@ -11,17 +11,18 @@ import (
 type Theme struct {
 	Name string
 
-	Header   lipgloss.Style
-	Muted    lipgloss.Style
-	Text     lipgloss.Style
-	Star     lipgloss.Style
-	Folder   lipgloss.Style
-	Label    lipgloss.Style
-	Selected lipgloss.Style
-	Marker   lipgloss.Style
-	OK       lipgloss.Style
-	Busy     lipgloss.Style
-	Error    lipgloss.Style
+	Header     lipgloss.Style
+	Muted      lipgloss.Style
+	Text       lipgloss.Style
+	Star       lipgloss.Style
+	Folder     lipgloss.Style
+	Label      lipgloss.Style
+	Selected   lipgloss.Style
+	Marker     lipgloss.Style
+	OK         lipgloss.Style
+	Busy       lipgloss.Style
+	Error      lipgloss.Style
+	Background lipgloss.Color
 }
 
 // Get returns the named theme, or the default one if the name is unknown.
@@ -44,6 +45,8 @@ func Get(name string) Theme {
 		OK:       s().Foreground(p.Success),
 		Busy:     s().Foreground(p.Warning),
 		Error:    s().Foreground(p.Error),
+
+		Background: p.Background,
 	}
 }
 

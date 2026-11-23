@@ -41,7 +41,7 @@ func send(m Model, msg tea.Msg) Model {
 
 func TestRow(t *testing.T) {
 	s := session.Session{Title: "New title", LastUsed: now.Add(-2 * time.Hour), Bookmarked: true}
-	first := strings.Split(newTest(60, s).View(), "\n")[0]
+	first := strings.Split(newTest(60, s).View(), "\n")[1]
 
 	for _, want := range []string{"★", "New title", "2 hours ago"} {
 		if !strings.Contains(first, want) {
@@ -77,8 +77,8 @@ func TestSelected(t *testing.T) {
 func TestSearchBoxOnlyWhileSearching(t *testing.T) {
 	m := newTest(60, session.Session{Title: "Fix auth", Dir: "/home/u/proj", LastUsed: now})
 
-	if first := strings.Split(m.View(), "\n")[0]; !strings.Contains(first, "Fix auth") {
-		t.Fatalf("first line should be the first session, got %q", first)
+	if !strings.Contains(strings.Split(m.View(), "\n")[1], "Fix auth") {
+		t.Fatalf("second line should be the first session, got %q", m.View())
 	}
 	m, _ = m.Update(tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
 	if !m.Searching() || !strings.Contains(m.View(), "Filter:") {
@@ -128,5 +128,25 @@ func TestSetSessions_KeepsSearchResults(t *testing.T) {
 	m.SetSessions([]session.Session{one, two})
 	if s, ok := m.Selected(); !ok || s.ID != "b" {
 		t.Errorf("after reloading, the search should still show beta; selected %+v, %v", s, ok)
+	}
+}
+
+func TestSearchLineAlwaysShown(t *testing.T) {
+	m := newTest(60,
+		session.Session{ID: "a", Title: "One", LastUsed: now},
+		session.Session{ID: "b", Title: "Two", LastUsed: now},
+	)
+	if first := strings.Split(m.View(), "\n")[0]; !strings.Contains(first, "/ search") {
+		t.Fatalf("first line should be the search hint, got %q", first)
+	}
+	before := strings.Count(m.View(), "\n")
+	for _, r := range "/x" {
+		m = send(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	if strings.Contains(m.View(), "/ search") {
+		t.Error("hint should give way to the filter line")
+	}
+	if got := strings.Count(m.View(), "\n"); got != before {
+		t.Errorf("height changed: %d -> %d lines", before, got)
 	}
 }

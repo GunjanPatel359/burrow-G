@@ -31,7 +31,7 @@ In the UI:
   →/tab    go to sessions    o        resume here
   ←/esc    back to agents    /        search
   b        bookmark (★)      r        refresh
-  q        quit
+  ctrl+k   commands          q        quit
 
 Data: ~/.local/share/burrow-g (agents' own files are only read, never changed)
 `

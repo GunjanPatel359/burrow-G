@@ -99,12 +99,36 @@ burrow-g help            show help
 | `o` | — | resume in this terminal |
 | `b` | — | bookmark (★) — bookmarked sessions stay at the top |
 | `/` | — | search title or folder |
+| `ctrl+k` | commands | commands |
 | `←` / `esc` | — | back to agents |
 | `r` | refresh | refresh |
 | `q` / `ctrl+c` | quit | quit |
 
 **New tabs** currently work in **GNOME Terminal**. In other terminals (and IDE terminals
 such as GoLand's), `enter` resumes in the current terminal instead.
+
+### Commands
+
+Press `ctrl+k` to open the command bar: it lists the commands. Pick one with `↑`/`↓`
+and press `enter`, or type it. A command that needs a value, like `theme`, then lists
+its values; pick one the same way. `tab` completes without running, `esc` clears the
+line (and closes the bar when it is empty), and `ctrl+k` closes it too.
+
+| Command | What it does |
+|---|---|
+| `theme <name>` | switch colours; the list previews live while you choose, and the choice is remembered |
+| `refresh` | refresh sessions |
+| `help` | show help (`↑`/`↓` scroll, `esc` closes it) |
+| `quit` | quit |
+
+Syntax: `command [value] [@tag:value …]`. Use quotes for values with spaces.
+
+Themes (17): `tokyo-night` (default), `ayu-mirage`, `catppuccin-mocha`, `catppuccin-latte`,
+`dracula`, `everforest-dark`, `github-dark`, `github-light`, `gruvbox-dark`, `kanagawa`,
+`monokai`, `nord`, `one-dark`, `rose-pine`, `rose-pine-dawn`, `solarized-dark`,
+`solarized-light`. `catppuccin-latte`, `github-light`, `rose-pine-dawn` and `solarized-light`
+are light. A theme also sets the terminal's background while burrow-G runs, and the original
+comes back when it quits (terminals that don't support this keep their own background).
 
 ### Sessions started with sudo
 
@@ -153,13 +177,36 @@ internal/
   agents/<agent>/      one reader per agent — add a new agent here
   db/                  burrow-G's own SQLite index
     patches/           bring index files from older versions up to date
+  command/             command bar engine: read a line, check arguments, run, suggest
+    commands/          every command (theme.go, help.go, …) and the list in commands.go
+    event/             what a command asks the screen to do
   launch/              open a command in a new terminal tab (gnome.go, …)
   helpers/             small text/time/file helpers
   tui/                 Bubble Tea UI
     app.go layout.go keys.go messages.go commands.go
     theme/             colour palettes → styles
-    components/        agentlist, sessionlist, details, statusbar
+    components/        agentlist, sessionlist, details, statusbar, commandbar
 ```
+
+### Adding a command
+
+Write `internal/command/commands/<name>.go` with one `command.Command`: its `Name`,
+`Help`, optional `Key`, its `Args`, and `Run`. List it in `New` in `commands.go`.
+Everything about the command lives in that one file, e.g. `theme.go`:
+
+```go
+var Theme = command.Command{
+	Name: "theme",
+	Help: "change the colour theme",
+	Args: []command.Arg{{Help: "a colour theme", Required: true, Suggest: suggestTheme, Check: checkTheme}},
+	Run: func(env command.Env, in command.Input) (event.Event, error) { … in.Value() … },
+}
+```
+
+An `Arg` with no `Name` is the bare value (`theme nord`); one with a `Name` is a tag
+(`@agent:claude`), read in `Run` with `in.Get("agent")`. An `Arg` several commands
+need is written once as a variable and listed in each. `Run` returns an event from
+`event/`; if it needs a new one, add the event and one `case` in `internal/tui/app.go`.
 
 ### Changing how data is stored
 
@@ -187,7 +234,6 @@ the model/update/view idea from scratch and walks through this codebase.
 - Delete sessions safely (to a trash folder, with restore)
 - More agents: Gemini CLI, Qwen Code, Cursor CLI
 - More terminals for new tabs: kitty, WezTerm, tmux
-- Switchable colour themes
 
 ## License
 

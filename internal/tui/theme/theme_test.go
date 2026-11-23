@@ -1,6 +1,7 @@
 package theme
 
 import (
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -55,5 +56,38 @@ func TestRow_HighlightCoversColouredParts(t *testing.T) {
 	afterReset := before[strings.LastIndex(before, "\x1b[0m"):]
 	if !strings.Contains(afterReset, "48;") {
 		t.Errorf("text after the ★ has no highlight background: %q", row)
+	}
+}
+
+func TestNames_AllThemes(t *testing.T) {
+	want := []string{
+		"ayu-mirage", "catppuccin-latte", "catppuccin-mocha", "dracula", "everforest-dark",
+		"github-dark", "github-light", "gruvbox-dark", "kanagawa", "monokai", "nord", "one-dark",
+		"rose-pine", "rose-pine-dawn", "solarized-dark", "solarized-light", "tokyo-night",
+	}
+	if got := Names(); !slices.Equal(got, want) {
+		t.Errorf("Names() = %v, want %v", got, want)
+	}
+	for _, n := range want {
+		if Get(n).Name != n {
+			t.Errorf("Get(%q).Name = %q", n, Get(n).Name)
+		}
+	}
+}
+
+func TestEveryPaletteIsComplete(t *testing.T) {
+	for name, p := range palettes {
+		v := reflect.ValueOf(p)
+		for i := range v.NumField() {
+			if v.Field(i).String() == "" {
+				t.Errorf("%s: %s is empty", name, v.Type().Field(i).Name)
+			}
+		}
+	}
+}
+
+func TestGet_HasBackground(t *testing.T) {
+	if got := Get("nord").Background; got != "#2e3440" {
+		t.Errorf("nord background = %q, want #2e3440", got)
 	}
 }

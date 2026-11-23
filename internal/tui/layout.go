@@ -28,6 +28,8 @@ func (m *model) resize() {
 	m.agents.SetSize(leftWidth, m.bodyHeight()-1)
 	m.sessions.SetSize(m.rightWidth(), m.listHeight())
 	m.details.SetWidth(m.rightWidth())
+	m.bar.SetWidth(m.width)
+	m.helpTop = min(m.helpTop, max(len(m.help)-m.bodyHeight(), 0))
 }
 
 func (m model) View() string {
@@ -39,14 +41,36 @@ func (m model) View() string {
 
 	sep := t.Muted.Render(strings.TrimSuffix(strings.Repeat("│\n", h), "\n"))
 
+	body := lipgloss.JoinHorizontal(lipgloss.Top, left, sep, m.rightView())
+	rows := strings.Split(body, "\n")
+	rows = rows[:min(len(rows), h)]
+
+	bottom := m.status.View()
+	if m.bar.Opened() {
+		// The bar may take more than one line; the body gives them up.
+		bottom = m.bar.View()
+		rows = rows[:max(len(rows)-strings.Count(bottom, "\n"), 0)]
+		sugg := m.bar.Rows()
+		sugg = sugg[:min(len(sugg), len(rows))]
+		copy(rows[len(rows)-len(sugg):], sugg)
+	}
+	return strings.Join(rows, "\n") + "\n" + t.Muted.Render(strings.Repeat("─", m.width)) + "\n" + bottom
+}
+
+// rightView is the sessions list and details, or the help text when shown.
+func (m model) rightView() string {
+	h := m.bodyHeight()
+	t := m.theme
+	if m.help != nil {
+		text := t.Text.Render(" " + strings.Join(m.help[m.helpTop:], "\n "))
+		text = lipgloss.NewStyle().MaxWidth(m.rightWidth()).Render(text) // cut, don't wrap
+		return lipgloss.NewStyle().Width(m.rightWidth()).Height(h).MaxHeight(h).Render(text)
+	}
 	list := lipgloss.NewStyle().Height(m.listHeight()).MaxHeight(m.listHeight()).Render(m.sessions.View())
-	right := t.Header.Render(" "+m.sessionsTitle()) + "\n" +
+	return t.Header.Render(" "+m.sessionsTitle()) + "\n" +
 		list + "\n" +
 		t.Muted.Render(strings.Repeat("─", m.rightWidth())) + "\n" +
 		m.details.View()
-
-	body := lipgloss.JoinHorizontal(lipgloss.Top, left, sep, right)
-	return body + "\n" + t.Muted.Render(strings.Repeat("─", m.width)) + "\n" + m.status.View()
 }
 
 func (m model) sessionsTitle() string {

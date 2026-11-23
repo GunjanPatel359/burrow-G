@@ -1,17 +1,22 @@
 package tui
 
 import (
+	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
+	"github.com/GunjanPatel359/burrow-G/internal/command/event"
 	"github.com/GunjanPatel359/burrow-G/internal/db"
 	"github.com/GunjanPatel359/burrow-G/internal/launch"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/agentlist"
+	"github.com/GunjanPatel359/burrow-G/internal/tui/components/commandbar"
+	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
 )
 
 type fakeSource struct {
@@ -75,7 +80,8 @@ func run(cmd tea.Cmd) []tea.Msg {
 func deliver(m model, cmd tea.Cmd) model {
 	for _, msg := range run(cmd) {
 		switch msg.(type) {
-		case refreshedMsg, openedMsg, bookmarkedMsg, agentlist.SelectedMsg:
+		case refreshedMsg, openedMsg, bookmarkedMsg, agentlist.SelectedMsg,
+			commandbar.RanMsg, commandbar.PreviewMsg, commandbar.ClosedMsg:
 			next, more := m.Update(msg)
 			m = deliver(next.(model), more)
 		}
@@ -263,7 +269,7 @@ func twoSessions(t *testing.T) (model, *db.DB) {
 	return m, store
 }
 
-func firstRow(m model) string { return strings.Split(m.sessions.View(), "\n")[0] }
+func firstRow(m model) string { return strings.Split(m.sessions.View(), "\n")[1] }
 
 func TestBookmarkMovesToTopAndBack(t *testing.T) {
 	m, _ := twoSessions(t)
@@ -328,5 +334,274 @@ func TestBookmarkIgnoredWhileSearchingOrInAgents(t *testing.T) {
 		if s.Bookmarked {
 			t.Errorf("%s got bookmarked", s.ID)
 		}
+	}
+}
+
+var ctrlK = tea.KeyMsg{Type: tea.KeyCtrlK}
+
+// typeText types s one key at a time, dropping the input's own commands.
+func typeText(m model, s string) model {
+	for _, r := range s {
+		m, _ = press(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune{r}})
+	}
+	return m
+}
+
+// pressAll presses k and feeds back what the bar and app send.
+func pressAll(m model, msg tea.Msg) model {
+	next, cmd := m.Update(msg)
+	return deliver(next.(model), cmd)
+}
+
+func lines(v string) int { return strings.Count(v, "\n") + 1 }
+
+func TestCtrlKOpensAndRunsTheme(t *testing.T) {
+	m, store := testModel(t)
+	m = pressAll(m, ctrlK)
+	if !m.bar.Opened() {
+		t.Fatal("ctrl+k should open the bar")
+	}
+	m = typeText(m, "theme nord")
+	m = pressAll(m, enter)
+
+	if m.bar.Opened() || m.theme.Name != "nord" {
+		t.Errorf("bar open %v, theme %q", m.bar.Opened(), m.theme.Name)
+	}
+	if got, _ := store.Setting("theme"); got != "nord" {
+		t.Errorf("saved setting = %q", got)
+	}
+	if !strings.Contains(m.status.View(), `theme "nord"`) {
+		t.Errorf("status = %q", m.status.View())
+	}
+}
+
+func TestPreviewRevertsOnClose(t *testing.T) {
+	m, _ := testModel(t)
+	m = typeText(pressAll(m, ctrlK), "theme ")
+	m = pressAll(m, down)
+	if m.theme.Name == theme.Default {
+		t.Fatal("down should preview another theme")
+	}
+	m = pressAll(m, esc)
+	m = pressAll(m, esc)
+	if m.bar.Opened() || m.theme.Name != theme.Default {
+		t.Errorf("bar open %v, theme %q", m.bar.Opened(), m.theme.Name)
+	}
+}
+
+func TestEnterAppliesPickedTheme(t *testing.T) {
+	m, store := testModel(t)
+	m = typeText(pressAll(m, ctrlK), "theme ")
+	m = pressAll(m, down)
+	picked := m.theme.Name
+	m = pressAll(m, enter)
+
+	if m.bar.Opened() || m.theme.Name != picked {
+		t.Errorf("bar open %v, theme %q, want %q", m.bar.Opened(), m.theme.Name, picked)
+	}
+	if got, _ := store.Setting("theme"); got != picked {
+		t.Errorf("saved setting = %q, want %q", got, picked)
+	}
+}
+
+func TestRunErrorKeepsBarOpen(t *testing.T) {
+	m, _ := testModel(t)
+	m = pressAll(typeText(pressAll(m, ctrlK), "theme zz"), enter)
+
+	if !m.bar.Opened() || !strings.Contains(m.View(), `no theme "zz"`) {
+		t.Errorf("bar open %v; want the error shown", m.bar.Opened())
+	}
+	if n := lines(m.View()); n != m.height {
+		t.Errorf("view has %d lines with an error, want %d", n, m.height)
+	}
+	m = pressAll(m, ctrlK)
+	if m.bar.Opened() || m.theme.Name != theme.Default {
+		t.Errorf("ctrl+k: bar open %v, theme %q", m.bar.Opened(), m.theme.Name)
+	}
+}
+
+func TestSavedThemeLoadedAtStart(t *testing.T) {
+	m, store := testModel(t)
+	if err := store.SetSetting("theme", "dracula"); err != nil {
+		t.Fatal(err)
+	}
+	m = newModel(store, m.sources, "/home/u", nil)
+	if m.theme.Name != "dracula" {
+		t.Errorf("theme = %q", m.theme.Name)
+	}
+}
+
+func TestUnknownSavedThemeFallsBack(t *testing.T) {
+	m, store := testModel(t)
+	if err := store.SetSetting("theme", "gone"); err != nil {
+		t.Fatal(err)
+	}
+	m = newModel(store, m.sources, "/home/u", nil)
+	if m.theme.Name != theme.Default || strings.Contains(m.status.View(), "error") {
+		t.Errorf("theme %q, status %q", m.theme.Name, m.status.View())
+	}
+}
+
+func TestEveryEventHandled(t *testing.T) {
+	for _, e := range event.All {
+		m, _ := testModel(t)
+		m.apply(e)
+		if strings.Contains(m.status.View(), "unknown event") {
+			t.Errorf("%T is not handled", e)
+		}
+	}
+	m, _ := testModel(t)
+	m.apply(struct{}{})
+	if !strings.Contains(m.status.View(), "unknown event") {
+		t.Errorf("unknown events should be reported: %q", m.status.View())
+	}
+}
+
+func TestHelpTakesOverRightSide(t *testing.T) {
+	m, _ := testModel(t)
+	m = deliver(m, m.Init())
+	m = typeText(pressAll(m, ctrlK), "help")
+	m = pressAll(m, enter)
+
+	v := m.View()
+	if !strings.Contains(v, "Commands") || !strings.Contains(v, "show keys and commands") || strings.Contains(v, "From files") {
+		t.Errorf("help should replace the right side:\n%s", v)
+	}
+	if _, cmd := press(m, keyQ); quits(cmd) {
+		t.Error("q must be ignored while help is shown")
+	}
+	m = pressAll(m, esc)
+	if v := m.View(); !strings.Contains(v, "From files") || strings.Contains(v, "Commands") {
+		t.Errorf("esc should bring the sessions back:\n%s", v)
+	}
+}
+
+func TestHelpScrollsWithinBounds(t *testing.T) {
+	m, _ := testModel(t)
+	m = pressAll(m, tea.WindowSizeMsg{Width: 80, Height: 10})
+	m.apply(event.ShowHelp{Text: strings.Repeat("line\n", 20)})
+	up := tea.KeyMsg{Type: tea.KeyUp}
+
+	m = pressAll(m, up)
+	if m.helpTop != 0 {
+		t.Errorf("up at the top: helpTop = %d", m.helpTop)
+	}
+	for range 50 {
+		m = pressAll(m, down)
+	}
+	if want := len(m.help) - m.bodyHeight(); m.helpTop != want {
+		t.Errorf("helpTop = %d, want %d", m.helpTop, want)
+	}
+}
+
+func TestBarFitsShortTerminal(t *testing.T) {
+	m, _ := testModel(t)
+	m = pressAll(m, tea.WindowSizeMsg{Width: 80, Height: 10})
+	m = typeText(pressAll(m, ctrlK), "")
+	if len(m.bar.Rows()) == 0 {
+		t.Fatal("empty line should suggest every command")
+	}
+	v := m.View()
+	if n := strings.Count(v, "\n"); n != 9 {
+		t.Errorf("view has %d newlines, want 9:\n%s", n, v)
+	}
+	if !strings.Contains(v, "theme") || !strings.Contains(v, "> ") {
+		t.Errorf("rows and input should show:\n%s", v)
+	}
+}
+
+func TestKeysIgnoredWhileBarOpen(t *testing.T) {
+	m, _ := testModel(t)
+	m = pressAll(m, ctrlK)
+	m, cmd := press(m, keyQ)
+	if quits(cmd) {
+		t.Error("q must not quit while the bar is open")
+	}
+	if !strings.Contains(m.bar.View(), "q") {
+		t.Errorf("input should show q: %q", m.bar.View())
+	}
+}
+
+func TestPreviewRevertsWhenOtherCommandRuns(t *testing.T) {
+	m, store := testModel(t)
+	m = typeText(pressAll(m, ctrlK), "theme ")
+	m = pressAll(m, down)
+	for range len("theme ") {
+		m, _ = press(m, tea.KeyMsg{Type: tea.KeyBackspace})
+	}
+	m = typeText(m, "refresh")
+	m = pressAll(m, enter)
+
+	if m.bar.Opened() || m.theme.Name != theme.Default {
+		t.Errorf("bar open %v, theme %q, want %q", m.bar.Opened(), m.theme.Name, theme.Default)
+	}
+	if got, _ := store.Setting("theme"); got != "" {
+		t.Errorf("setting = %q, want unset", got)
+	}
+}
+
+func TestCtrlCQuitsWithBarOpen(t *testing.T) {
+	m, _ := testModel(t)
+	m = pressAll(m, ctrlK)
+	if _, cmd := press(m, tea.KeyMsg{Type: tea.KeyCtrlC}); !quits(cmd) {
+		t.Error("ctrl+c should quit while the bar is open")
+	}
+}
+
+func TestCtrlCQuitsInHelp(t *testing.T) {
+	m, _ := testModel(t)
+	m.apply(event.ShowHelp{Text: "line\n"})
+	if _, cmd := press(m, tea.KeyMsg{Type: tea.KeyCtrlC}); !quits(cmd) {
+		t.Error("ctrl+c should quit while help is shown")
+	}
+}
+
+func TestHelpTopClampedOnResize(t *testing.T) {
+	m, _ := testModel(t)
+	m = pressAll(m, tea.WindowSizeMsg{Width: 80, Height: 10})
+	m.apply(event.ShowHelp{Text: strings.Repeat("line\n", 20)})
+	for range 50 {
+		m = pressAll(m, down)
+	}
+	m = pressAll(m, tea.WindowSizeMsg{Width: 80, Height: 20})
+	if want := len(m.help) - m.bodyHeight(); m.helpTop != want {
+		t.Errorf("helpTop = %d, want %d", m.helpTop, want)
+	}
+}
+
+func TestHelpLinesTruncatedNotWrapped(t *testing.T) {
+	m, _ := testModel(t)
+	m = pressAll(m, tea.WindowSizeMsg{Width: 60, Height: 10})
+	text := ""
+	for i := range 19 {
+		text += fmt.Sprintf("line%d\n", i)
+	}
+	text += strings.Repeat("x", 200) + "\nlast line\n"
+	m.apply(event.ShowHelp{Text: text})
+	for range 50 {
+		m = pressAll(m, down)
+	}
+	if v := m.View(); !strings.Contains(v, "last line") || lines(v) != m.height {
+		t.Errorf("the last help line should be reachable:\n%s", v)
+	}
+}
+
+func TestThemePaintsBackground(t *testing.T) {
+	m, _ := testModel(t)
+	var painted []lipgloss.Color
+	m.paint = func(c lipgloss.Color) { painted = append(painted, c) }
+	last := func() lipgloss.Color { return painted[len(painted)-1] }
+
+	m = pressAll(typeText(pressAll(m, ctrlK), "theme "), down) // preview
+	if len(painted) == 0 || last() == theme.Get(theme.Default).Background {
+		t.Fatalf("preview should paint the previewed background, painted %v", painted)
+	}
+	m = pressAll(pressAll(m, esc), esc) // close → back to the saved theme
+	if last() != theme.Get(theme.Default).Background {
+		t.Errorf("closing should paint the saved background, got %q", last())
+	}
+	m = pressAll(typeText(pressAll(m, ctrlK), "theme nord"), enter)
+	if last() != theme.Get("nord").Background {
+		t.Errorf("theme nord should paint %q, got %q", theme.Get("nord").Background, last())
 	}
 }
