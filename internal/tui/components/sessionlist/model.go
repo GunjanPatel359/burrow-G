@@ -28,6 +28,7 @@ type Model struct {
 	theme   theme.Theme
 	focused bool
 	home    string
+	w, h    int
 }
 
 func New(t theme.Theme, home string) Model {
@@ -52,7 +53,19 @@ func (m *Model) SetSessions(sessions []session.Session) {
 	}
 }
 
-func (m *Model) SetSize(w, h int) { m.list.SetSize(w, h) }
+func (m *Model) SetSize(w, h int) {
+	m.w, m.h = w, h
+	m.fit()
+}
+
+// fit sizes the list; the hint line above it takes the row bubbles' filter line uses.
+func (m *Model) fit() {
+	h := m.h
+	if !m.Filtered() {
+		h--
+	}
+	m.list.SetSize(m.w, max(h, 0))
+}
 
 func (m *Model) SetFocused(focused bool) {
 	m.focused = focused
@@ -93,10 +106,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmd tea.Cmd
 	m.list, cmd = m.list.Update(msg)
 	m.list.SetShowFilter(m.Filtered())
+	m.fit()
 	return m, cmd
 }
 
-func (m Model) View() string { return m.list.View() }
+func (m Model) View() string {
+	if m.Filtered() {
+		return m.list.View()
+	}
+	return m.theme.Muted.Render("/ search") + "\n" + m.list.View()
+}
 
 // delegate draws one row: "★ Title ......... 2 hours ago".
 type delegate struct {

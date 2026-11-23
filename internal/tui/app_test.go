@@ -263,7 +263,7 @@ func twoSessions(t *testing.T) (model, *db.DB) {
 	return m, store
 }
 
-func firstRow(m model) string { return strings.Split(m.sessions.View(), "\n")[0] }
+func firstRow(m model) string { return strings.Split(m.sessions.View(), "\n")[1] }
 
 func TestBookmarkMovesToTopAndBack(t *testing.T) {
 	m, _ := twoSessions(t)
