@@ -18,7 +18,8 @@
  ● refreshed   ↑/↓ move · enter new tab · o resume here · b bookmark · / search · q quit
 ```
 
-> **Status: v0.0.1 — early preview.** Listing, searching, resuming and bookmarks work.
+> **Status: v0.0.2 — early preview.** Listing, searching, resuming, bookmarks, themes and
+> the `ctrl+k` command bar work.
 > Deleting sessions is on the way. Expect rough edges and please [open an issue](../../issues).
 
 ## Why
