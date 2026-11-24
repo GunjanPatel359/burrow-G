@@ -54,7 +54,11 @@ func TestRefreshAll_SkipsBrokenSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer store.Close()
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
 
 	broken := fakeSource{name: "fake", err: errors.New("db missing")}
 	good := fakeSource{name: "good", list: []session.Session{{Agent: "good", ID: "a"}}}
@@ -75,11 +79,17 @@ func TestPickSession(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer store.Close()
-	store.Save("claude", []session.Session{
+	defer func() {
+		if err := store.Close(); err != nil {
+			t.Error(err)
+		}
+	}()
+	if err := store.Save("claude", []session.Session{
 		{Agent: "claude", ID: "2b3f3fde-1111", Title: "One"},
 		{Agent: "claude", ID: "2b3f9999-2222", Title: "Two"},
-	})
+	}); err != nil {
+		t.Fatal(err)
+	}
 	sources := []session.Source{fakeSource{name: "claude"}}
 
 	s, src, err := pickSession(store, sources, "2b3f3")

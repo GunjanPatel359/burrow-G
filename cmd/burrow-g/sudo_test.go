@@ -88,7 +88,9 @@ func TestSetupSudo_InstallsWrapper(t *testing.T) {
 
 func TestSetupSudo_ReplacesItsOwnWrapper(t *testing.T) {
 	target := filepath.Join(t.TempDir(), "burrow-g")
-	os.WriteFile(target, []byte(sudoWrapper("/old/burrow-g", "/old")), 0o755)
+	if err := os.WriteFile(target, []byte(sudoWrapper("/old/burrow-g", "/old")), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	var name, script string
 	var args []string
 
@@ -103,7 +105,9 @@ func TestSetupSudo_ReplacesItsOwnWrapper(t *testing.T) {
 func TestSetupSudo_Refuses(t *testing.T) {
 	dir := t.TempDir()
 	other := filepath.Join(dir, "other")
-	os.WriteFile(other, []byte("#!/bin/sh\necho someone else's\n"), 0o755)
+	if err := os.WriteFile(other, []byte("#!/bin/sh\necho someone else's\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	never := func(string, ...string) error { t.Fatal("should not run sudo"); return nil }
 
 	cases := map[string]struct{ binary, target, sudoUser string }{
