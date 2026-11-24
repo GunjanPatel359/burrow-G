@@ -115,7 +115,7 @@ func TestUsageKeyColumnsAligned(t *testing.T) {
 	ui, _, _ = strings.Cut(ui, "\n\n")
 	field := regexp.MustCompile(`\S+( \S+)*`)
 	col := -1
-	for _, row := range strings.Split(ui, "\n") {
+	for row := range strings.SplitSeq(ui, "\n") {
 		idx := field.FindAllStringIndex(row, -1)
 		if len(idx) < 3 {
 			t.Fatalf("row %q has fewer than 3 columns", row)

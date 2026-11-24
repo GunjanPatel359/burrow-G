@@ -134,7 +134,7 @@ func threadNames(path string) map[string]string {
 	if err != nil {
 		return names
 	}
-	for _, raw := range bytes.Split(data, []byte("\n")) {
+	for raw := range bytes.SplitSeq(data, []byte("\n")) {
 		var v struct {
 			ID         string `json:"id"`
 			ThreadName string `json:"thread_name"`
