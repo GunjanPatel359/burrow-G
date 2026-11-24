@@ -91,12 +91,13 @@ var (
 )
 
 // parseFile reads the session meta and the first user prompt, then stops.
-func parseFile(path string) (r rollout, err error) {
+func parseFile(path string) (rollout, error) {
+	var r rollout
 	f, err := os.Open(path)
 	if err != nil {
 		return r, err
 	}
-	defer func() { err = errors.Join(err, f.Close()) }()
+	defer f.Close()
 
 	br := bufio.NewReader(f)
 	for r.ID == "" || r.Prompt == "" {

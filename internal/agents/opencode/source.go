@@ -19,7 +19,7 @@ type Source struct {
 
 func (Source) Name() string { return "opencode" }
 
-func (o Source) List() (list []session.Session, err error) {
+func (o Source) List() ([]session.Session, error) {
 	if _, err := os.Stat(o.DBPath); os.IsNotExist(err) {
 		return nil, session.ErrMissing
 	} else if err != nil {
@@ -30,7 +30,7 @@ func (o Source) List() (list []session.Session, err error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = errors.Join(err, db.Close()) }()
+	defer db.Close()
 
 	// Newer OpenCode versions keep sessions in session_v2, older ones in session.
 	var table string
@@ -46,8 +46,9 @@ func (o Source) List() (list []session.Session, err error) {
 	if err != nil {
 		return nil, err
 	}
-	defer func() { err = errors.Join(err, rows.Close()) }()
+	defer rows.Close()
 
+	var list []session.Session
 	for rows.Next() {
 		var s session.Session
 		var title sql.NullString
