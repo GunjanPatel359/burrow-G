@@ -36,7 +36,7 @@ const helpViewHelp = "↑/↓ scroll · esc close · ctrl+k commands"
 // keyLines is every key from the help lines, once each, for the help command.
 func keyLines(tabs bool) []string {
 	var out []string
-	for _, k := range strings.Split(agentHelp+" · "+sessionHelp(tabs), " · ") {
+	for k := range strings.SplitSeq(agentHelp+" · "+sessionHelp(tabs), " · ") {
 		if !slices.Contains(out, k) {
 			out = append(out, k)
 		}

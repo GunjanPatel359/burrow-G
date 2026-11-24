@@ -52,7 +52,7 @@ func TestRow(t *testing.T) {
 
 func TestLongTitleFits(t *testing.T) {
 	s := session.Session{Title: strings.Repeat("very long title ", 10), LastUsed: now}
-	first := strings.Split(newTest(40, s).View(), "\n")[0]
+	first, _, _ := strings.Cut(newTest(40, s).View(), "\n")
 	if w := len([]rune(first)); w > 40 {
 		t.Errorf("row is %d characters, want at most 40: %q", w, first)
 	}
@@ -136,7 +136,7 @@ func TestSearchLineAlwaysShown(t *testing.T) {
 		session.Session{ID: "a", Title: "One", LastUsed: now},
 		session.Session{ID: "b", Title: "Two", LastUsed: now},
 	)
-	if first := strings.Split(m.View(), "\n")[0]; !strings.Contains(first, "/ search") {
+	if first, _, _ := strings.Cut(m.View(), "\n"); !strings.Contains(first, "/ search") {
 		t.Fatalf("first line should be the search hint, got %q", first)
 	}
 	before := strings.Count(m.View(), "\n")

@@ -42,8 +42,8 @@ Bubble Tea runs this loop for you:
   new model  │                        │  View(model) → string
              │                        ▼
    ┌─────────┴─────────┐     ┌──────────────────┐
-   │  Update(msg)      │     │ terminal shows    │
-   └─────────▲─────────┘     │ that string       │
+   │  Update(msg)      │     │ terminal shows   │
+   └─────────▲─────────┘     │ that string      │
              │               └──────────────────┘
              │  msg = "something happened"
    key press · window resized · background job finished

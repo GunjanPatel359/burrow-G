@@ -32,7 +32,17 @@ func (o Source) List() ([]session.Session, error) {
 	}
 	defer db.Close()
 
-	rows, err := db.Query(`SELECT id, title, directory, time_updated FROM session WHERE parent_id IS NULL`)
+	// Newer OpenCode versions keep sessions in session_v2, older ones in session.
+	var table string
+	err = db.QueryRow(`SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('session_v2', 'session') ORDER BY name = 'session_v2' DESC LIMIT 1`).Scan(&table)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, errors.New("unsupported database schema: neither session_v2 nor session table found")
+	}
+	if err != nil {
+		return nil, err
+	}
+	// table is one of the two names above, never user input.
+	rows, err := db.Query(`SELECT id, title, directory, time_updated FROM ` + table + ` WHERE parent_id IS NULL`)
 	if err != nil {
 		return nil, err
 	}
@@ -41,9 +51,14 @@ func (o Source) List() ([]session.Session, error) {
 	var list []session.Session
 	for rows.Next() {
 		var s session.Session
+		var title sql.NullString
 		var updated int64
-		if err := rows.Scan(&s.ID, &s.Title, &s.Dir, &updated); err != nil {
+		if err := rows.Scan(&s.ID, &title, &s.Dir, &updated); err != nil {
 			return nil, err
+		}
+		s.Title = title.String
+		if s.Title == "" {
+			s.Title = "(untitled)"
 		}
 		s.Agent = "opencode"
 		s.LastUsed = time.UnixMilli(updated)
