@@ -33,11 +33,11 @@ func TestSudoHint(t *testing.T) {
 	if err := sudoHint(notFound, "u"); !strings.Contains(err.Error(), "burrow-g setup-sudo") {
 		t.Errorf("under sudo: err = %v, want a PATH hint", err)
 	}
-	if err := sudoHint(notFound, ""); !errors.Is(err, notFound) {
+	if err := sudoHint(notFound, ""); err != notFound {
 		t.Errorf("normal run: err = %v, want it unchanged", err)
 	}
 	other := errors.New("folder no longer exists")
-	if err := sudoHint(other, "u"); !errors.Is(err, other) {
+	if err := sudoHint(other, "u"); err != other {
 		t.Errorf("other errors: err = %v, want it unchanged", err)
 	}
 }
