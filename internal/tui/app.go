@@ -3,6 +3,7 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -34,6 +35,7 @@ type model struct {
 	store   *db.DB
 	sources []session.Source
 	theme   theme.Theme
+	env     theme.Env // what the terminal can draw; every theme.Get uses it
 
 	agents   agentlist.Model
 	sessions sessionlist.Model
@@ -54,15 +56,14 @@ type model struct {
 	helpTop int
 }
 
-func newModel(store *db.DB, sources []session.Source, home string, term launch.Terminal) model {
+// newModel builds the app. dark reports the terminal's background and picks
+// the first theme when none is saved.
+func newModel(store *db.DB, sources []session.Source, home string, term launch.Terminal, env theme.Env, dark func() bool) model {
 	current := func() string {
 		name, _ := store.Setting("theme")
-		if name == "" {
-			return theme.Default
-		}
-		return name
+		return theme.Initial(name, dark)
 	}
-	t := theme.Get(current())
+	t := theme.Get(current(), env)
 	svc := commands.New(command.Env{
 		Store:   store,
 		Themes:  theme.Names(),
@@ -75,6 +76,7 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 		store:    store,
 		sources:  sources,
 		theme:    t,
+		env:      env,
 		saved:    t.Name,
 		agents:   agentlist.New(t),
 		sessions: sessionlist.New(t, home),
@@ -98,9 +100,11 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 
 // Run shows the TUI and returns the session to resume, or nil.
 func Run(store *db.DB, sources []session.Source, home string, term launch.Terminal) (*session.Session, error) {
-	m := newModel(store, sources, home, term)
+	env := theme.DetectEnv(lipgloss.DefaultRenderer().Output().EnvColorProfile(), os.Getenv)
+	lipgloss.SetColorProfile(env.Depth.Profile())
 	bg := newBackground()
 	defer bg.restore() // before main resumes a session in this terminal
+	m := newModel(store, sources, home, term, env, bg.dark)
 	m.paint = bg.set
 	m.paint(m.theme.Background)
 
@@ -175,18 +179,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.selectAgent(msg.Name)
 
 	case commandbar.RanMsg:
-		m.setTheme(theme.Get(m.saved)) // drop any preview; a theme run sets it again
+		m.setTheme(theme.Get(m.saved, m.env)) // drop any preview; a theme run sets it again
 		return m, m.apply(msg.Event)
 
 	case commandbar.PreviewMsg:
 		if msg.Event == nil {
-			m.setTheme(theme.Get(m.saved))
+			m.setTheme(theme.Get(m.saved, m.env))
 			return m, nil
 		}
 		return m, m.apply(msg.Event)
 
 	case commandbar.ClosedMsg:
-		m.setTheme(theme.Get(m.saved))
+		m.setTheme(theme.Get(m.saved, m.env))
 		return m, nil
 
 	case tea.KeyMsg:
@@ -249,7 +253,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *model) apply(e event.Event) tea.Cmd {
 	switch e := e.(type) {
 	case event.ThemeChanged:
-		m.setTheme(theme.Get(e.Name))
+		m.setTheme(theme.Get(e.Name, m.env))
 		if !e.Preview {
 			m.saved = e.Name
 			m.status.OK(fmt.Sprintf("theme %q", e.Name))

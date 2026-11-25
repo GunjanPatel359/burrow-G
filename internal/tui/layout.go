@@ -7,7 +7,7 @@ import (
 	"github.com/charmbracelet/lipgloss"
 
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/agentlist"
-	"github.com/GunjanPatel359/burrow-G/internal/tui/components/details"
+	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
 )
 
 // Screen layout:
@@ -18,14 +18,12 @@ import (
 //	       │ details
 //	─────────────────────────
 //	status line
-const leftWidth = 20
-
 func (m model) bodyHeight() int { return max(m.height-2, 8) }
-func (m model) rightWidth() int { return max(m.width-leftWidth-1, 20) }
-func (m model) listHeight() int { return max(m.bodyHeight()-2-details.Height, 1) }
+func (m model) rightWidth() int { return max(m.width-theme.AgentsWidth-1, 20) }
+func (m model) listHeight() int { return max(m.bodyHeight()-2-theme.DetailsHeight, 1) }
 
 func (m *model) resize() {
-	m.agents.SetSize(leftWidth, m.bodyHeight()-1)
+	m.agents.SetSize(theme.AgentsWidth, m.bodyHeight()-1)
 	m.sessions.SetSize(m.rightWidth(), m.listHeight())
 	m.details.SetWidth(m.rightWidth())
 	m.bar.SetWidth(m.width)
@@ -37,7 +35,7 @@ func (m model) View() string {
 	t := m.theme
 
 	left := t.Header.Render(" Agents") + "\n" + m.agents.View()
-	left = lipgloss.NewStyle().Width(leftWidth).Height(h).MaxHeight(h).Render(left)
+	left = lipgloss.NewStyle().Width(theme.AgentsWidth).Height(h).MaxHeight(h).Render(left)
 
 	sep := t.Muted.Render(strings.TrimSuffix(strings.Repeat("│\n", h), "\n"))
 

@@ -10,9 +10,6 @@ import (
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
 )
 
-// Height is how many lines the box always takes.
-const Height = 4
-
 type Model struct {
 	theme   theme.Theme
 	width   int
@@ -37,7 +34,7 @@ func (m *Model) Clear() {
 
 func (m Model) View() string {
 	if m.session == nil {
-		return m.theme.Muted.Render(" no sessions") + strings.Repeat("\n", Height-1)
+		return m.theme.Muted.Render(" no sessions") + strings.Repeat("\n", theme.DetailsHeight-1)
 	}
 	s := m.session
 	fit := func(v string) string { return helpers.Truncate(v, m.width-10) }

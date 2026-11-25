@@ -14,7 +14,7 @@ import (
 var now = time.Now()
 
 func newTest(width int, list ...session.Session) Model {
-	m := New(theme.Get(theme.Default), "/home/u")
+	m := New(theme.Get(theme.Default, theme.Env{}), "/home/u")
 	m.SetSize(width, 10)
 	m.SetSessions(list)
 	return m

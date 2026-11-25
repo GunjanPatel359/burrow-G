@@ -50,7 +50,7 @@ func testModelWith(t *testing.T, term launch.Terminal, dir string) (model, *db.D
 	qoder := fakeSource{name: "qoder", list: []session.Session{
 		{Agent: "qoder", ID: "qqq", Title: "Qoder work", Dir: "/tmp", LastUsed: time.Now()},
 	}}
-	return newModel(store, []session.Source{claude, qoder}, "/home/u", term), store
+	return newModel(store, []session.Source{claude, qoder}, "/home/u", term, theme.Env{}, alwaysDark), store
 }
 
 var (
@@ -263,7 +263,7 @@ func twoSessions(t *testing.T) (model, *db.DB) {
 		{Agent: "claude", ID: "new", Title: "Newer", Dir: "/tmp", LastUsed: time.Now()},
 		{Agent: "claude", ID: "old", Title: "Older", Dir: "/tmp", LastUsed: time.Now().Add(-time.Hour)},
 	}}
-	m := newModel(store, []session.Source{claude}, "/home/u", nil)
+	m := newModel(store, []session.Source{claude}, "/home/u", nil, theme.Env{}, alwaysDark)
 	m = deliver(m, m.Init())
 	m, _ = press(m, enter)
 	return m, store
@@ -309,7 +309,7 @@ func TestBookmarkSurvivesRefreshAndRestart(t *testing.T) {
 		t.Errorf("after refresh: %q", row)
 	}
 
-	again := newModel(store, m.sources, "/home/u", nil)
+	again := newModel(store, m.sources, "/home/u", nil, theme.Env{}, alwaysDark)
 	if row := firstRow(again); !strings.Contains(row, "★") || !strings.Contains(row, "Older") {
 		t.Errorf("after restart: %q", row)
 	}
@@ -425,7 +425,7 @@ func TestSavedThemeLoadedAtStart(t *testing.T) {
 	if err := store.SetSetting("theme", "dracula"); err != nil {
 		t.Fatal(err)
 	}
-	m = newModel(store, m.sources, "/home/u", nil)
+	m = newModel(store, m.sources, "/home/u", nil, theme.Env{}, alwaysDark)
 	if m.theme.Name != "dracula" {
 		t.Errorf("theme = %q", m.theme.Name)
 	}
@@ -436,7 +436,7 @@ func TestUnknownSavedThemeFallsBack(t *testing.T) {
 	if err := store.SetSetting("theme", "gone"); err != nil {
 		t.Fatal(err)
 	}
-	m = newModel(store, m.sources, "/home/u", nil)
+	m = newModel(store, m.sources, "/home/u", nil, theme.Env{}, alwaysDark)
 	if m.theme.Name != theme.Default || strings.Contains(m.status.View(), "error") {
 		t.Errorf("theme %q, status %q", m.theme.Name, m.status.View())
 	}
@@ -593,15 +593,46 @@ func TestThemePaintsBackground(t *testing.T) {
 	last := func() lipgloss.Color { return painted[len(painted)-1] }
 
 	m = pressAll(typeText(pressAll(m, ctrlK), "theme "), down) // preview
-	if len(painted) == 0 || last() == theme.Get(theme.Default).Background {
+	if len(painted) == 0 || last() == theme.Get(theme.Default, theme.Env{}).Background {
 		t.Fatalf("preview should paint the previewed background, painted %v", painted)
 	}
 	m = pressAll(pressAll(m, esc), esc) // close → back to the saved theme
-	if last() != theme.Get(theme.Default).Background {
+	if last() != theme.Get(theme.Default, theme.Env{}).Background {
 		t.Errorf("closing should paint the saved background, got %q", last())
 	}
 	m = pressAll(typeText(pressAll(m, ctrlK), "theme nord"), enter)
-	if last() != theme.Get("nord").Background {
-		t.Errorf("theme nord should paint %q, got %q", theme.Get("nord").Background, last())
+	if last() != theme.Get("nord", theme.Env{}).Background {
+		t.Errorf("theme nord should paint %q, got %q", theme.Get("nord", theme.Env{}).Background, last())
+	}
+}
+
+func alwaysDark() bool { return true }
+
+// With no saved theme a light terminal starts light; a saved one always wins.
+func TestFirstThemeFollowsTerminal(t *testing.T) {
+	m, store := testModel(t)
+	light := func() bool { return false }
+	if got := newModel(store, m.sources, "/home/u", nil, theme.Env{}, light).theme.Name; got != theme.DefaultLight {
+		t.Errorf("light terminal started on %q, want %q", got, theme.DefaultLight)
+	}
+	if err := store.SetSetting("theme", "nord"); err != nil {
+		t.Fatal(err)
+	}
+	if got := newModel(store, m.sources, "/home/u", nil, theme.Env{}, light).theme.Name; got != "nord" {
+		t.Errorf("saved nord started on %q", got)
+	}
+}
+
+// At 16 colors the terminal keeps its own background, also while previewing.
+func TestColor16NeverPaints(t *testing.T) {
+	_, store := testModel(t)
+	m := newModel(store, nil, "/home/u", nil, theme.Env{Depth: theme.Color16}, alwaysDark)
+	var painted []lipgloss.Color
+	m.paint = func(c lipgloss.Color) { painted = append(painted, c) }
+	m = pressAll(typeText(pressAll(m, ctrlK), "theme nord"), enter)
+	for _, c := range painted {
+		if c != "" {
+			t.Errorf("painted %q at 16 colors", c)
+		}
 	}
 }

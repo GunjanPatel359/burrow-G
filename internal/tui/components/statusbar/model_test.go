@@ -9,7 +9,7 @@ import (
 )
 
 func TestView(t *testing.T) {
-	m := New(theme.Get(theme.Default))
+	m := New(theme.Get(theme.Default, theme.Env{}))
 	m.SetHelp("q quit")
 
 	m.Busy("refreshing…")
