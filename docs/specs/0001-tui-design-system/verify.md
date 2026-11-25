@@ -70,3 +70,18 @@ _The spec has no numbered acceptance criteria, so these steps come from its stan
 - empty state agent name ← `agentlist.DisplayName`: the "no sessions yet" step, plus `TestEmptyStates`
 - search query ← `list.Model.FilterValue()`: the `zzzz` step, plus `TestNoMatches`
 - color depth for the theme message ← `theme.Env.Depth`: the 16 color and `NO_COLOR` steps, plus `TestThemeWithoutColorsSaysWhy`
+
+## Step 4: reference
+
+### By hand
+- [ ] Open `docs/design.md`: the spec 0001 link at the top opens the spec (Rollout step 4)
+- [ ] Its color slot table lists the same 14 slots as `Palette` in `internal/tui/theme/palettes.go`, and its 16 color and no color columns match `ansi16` and `noColor` in `theme/looks.go` (section 2)
+- [ ] Its `tokyo-night` table matches that palette in `theme/palettes.go` (section 2)
+- [ ] Its glyph table matches `Unicode` and `ASCII` in `theme/glyphs.go`, and its layout table matches `theme/layout.go` (sections 4, 5)
+- [ ] Its primitives table names every exported function in `internal/tui/ui` (section 6)
+
+### Commands
+- [ ] The `rg` check in `docs/design.md` ("The one rule") → only comments match (section 1)
+
+### Value sourcing coverage
+- Step 4 adds no values; every table is read from the code named in the steps above.
