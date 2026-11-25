@@ -3,9 +3,11 @@ package tui
 
 import (
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -34,6 +36,7 @@ type model struct {
 	store   *db.DB
 	sources []session.Source
 	theme   theme.Theme
+	env     theme.Env // what the terminal can draw; every theme.Get uses it
 
 	agents   agentlist.Model
 	sessions sessionlist.Model
@@ -54,27 +57,27 @@ type model struct {
 	helpTop int
 }
 
-func newModel(store *db.DB, sources []session.Source, home string, term launch.Terminal) model {
+// newModel builds the app. dark reports the terminal's background and picks
+// the first theme when none is saved.
+func newModel(store *db.DB, sources []session.Source, home string, term launch.Terminal, env theme.Env, dark func() bool) model {
 	current := func() string {
 		name, _ := store.Setting("theme")
-		if name == "" {
-			return theme.Default
-		}
-		return name
+		return theme.Initial(name, dark)
 	}
-	t := theme.Get(current())
+	t := theme.Get(current(), env)
 	svc := commands.New(command.Env{
 		Store:   store,
 		Themes:  theme.Names(),
 		Current: current,
 		Sources: sources,
 		Home:    home,
-		Keys:    keyLines(term != nil),
+		Keys:    keyLines(term != nil, t.Glyph),
 	})
 	m := model{
 		store:    store,
 		sources:  sources,
 		theme:    t,
+		env:      env,
 		saved:    t.Name,
 		agents:   agentlist.New(t),
 		sessions: sessionlist.New(t, home),
@@ -89,7 +92,7 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 	if len(sources) > 0 {
 		m.agent = sources[0]
 		m.loadSessions()
-		m.status.Busy("refreshing…")
+		m.status.Busy("refreshing" + m.theme.Glyph.Ellipsis) // Init starts its spinner
 	}
 	m.setFocus(agentPane)
 	m.resize()
@@ -98,9 +101,11 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 
 // Run shows the TUI and returns the session to resume, or nil.
 func Run(store *db.DB, sources []session.Source, home string, term launch.Terminal) (*session.Session, error) {
-	m := newModel(store, sources, home, term)
+	env := theme.DetectEnv(lipgloss.DefaultRenderer().Output().EnvColorProfile(), os.Getenv)
+	lipgloss.SetColorProfile(env.Depth.Profile())
 	bg := newBackground()
 	defer bg.restore() // before main resumes a session in this terminal
+	m := newModel(store, sources, home, term, env, bg.dark)
 	m.paint = bg.set
 	m.paint(m.theme.Background)
 
@@ -115,7 +120,7 @@ func (m model) Init() tea.Cmd {
 	if m.agent == nil {
 		return nil
 	}
-	return refresh(m.store, m.agent)
+	return tea.Batch(refresh(m.store, m.agent), m.status.Tick())
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -129,6 +134,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.status, cmd = m.status.Update(msg)
+		return m, cmd
+
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.resize()
@@ -175,18 +185,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.selectAgent(msg.Name)
 
 	case commandbar.RanMsg:
-		m.setTheme(theme.Get(m.saved)) // drop any preview; a theme run sets it again
+		m.setTheme(theme.Get(m.saved, m.env)) // drop any preview; a theme run sets it again
 		return m, m.apply(msg.Event)
 
 	case commandbar.PreviewMsg:
 		if msg.Event == nil {
-			m.setTheme(theme.Get(m.saved))
+			m.setTheme(theme.Get(m.saved, m.env))
 			return m, nil
 		}
 		return m, m.apply(msg.Event)
 
 	case commandbar.ClosedMsg:
-		m.setTheme(theme.Get(m.saved))
+		m.setTheme(theme.Get(m.saved, m.env))
 		return m, nil
 
 	case tea.KeyMsg:
@@ -212,8 +222,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case m.focus == sessionPane && key.Matches(msg, keys.Enter) && m.terminal != nil:
 			if s, ok := m.sessions.Selected(); ok {
-				m.status.Busy("opening…")
-				return m, openTab(m.terminal, s, m.agent.ResumeCommand(s))
+				busy := m.status.Busy("opening" + m.theme.Glyph.Ellipsis)
+				return m, tea.Batch(busy, openTab(m.terminal, s, m.agent.ResumeCommand(s)))
 			}
 			return m, nil
 		case m.focus == sessionPane && (key.Matches(msg, keys.Enter) || key.Matches(msg, keys.Here)):
@@ -249,21 +259,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m *model) apply(e event.Event) tea.Cmd {
 	switch e := e.(type) {
 	case event.ThemeChanged:
-		m.setTheme(theme.Get(e.Name))
+		m.setTheme(theme.Get(e.Name, m.env))
 		if !e.Preview {
 			m.saved = e.Name
-			m.status.OK(fmt.Sprintf("theme %q", e.Name))
+			m.status.OK(themeSaved(e.Name, m.env))
 		}
 	case event.Refresh:
 		if m.agent == nil {
 			return nil
 		}
-		m.status.Busy("refreshing…")
-		return refresh(m.store, m.agent)
+		busy := m.status.Busy("refreshing" + m.theme.Glyph.Ellipsis)
+		return tea.Batch(busy, refresh(m.store, m.agent))
 	case event.ShowHelp:
 		m.help = strings.Split(strings.TrimSuffix(e.Text, "\n"), "\n")
 		m.helpTop = 0
-		m.status.SetHelp(helpViewHelp)
+		m.status.SetHelp(helpViewHints()...)
 	case event.Quit:
 		return tea.Quit
 	default:
@@ -305,8 +315,17 @@ func (m *model) selectAgent(name string) tea.Cmd {
 	}
 	m.sessions.ResetCursor()
 	m.loadSessions()
-	m.status.Busy("refreshing…")
-	return refresh(m.store, m.agent)
+	busy := m.status.Busy("refreshing" + m.theme.Glyph.Ellipsis)
+	return tea.Batch(busy, refresh(m.store, m.agent))
+}
+
+// themeSaved reports a saved theme. Without truecolor or 256 colors every
+// theme looks the same, so it says why nothing changed.
+func themeSaved(name string, env theme.Env) string {
+	if !env.Depth.Paints() {
+		return fmt.Sprintf("theme %q (colors need truecolor or 256)", name)
+	}
+	return fmt.Sprintf("theme %q", name)
 }
 
 func (m *model) setFocus(p pane) {
@@ -314,9 +333,9 @@ func (m *model) setFocus(p pane) {
 	m.agents.SetFocused(p == agentPane)
 	m.sessions.SetFocused(p == sessionPane)
 	if p == agentPane {
-		m.status.SetHelp(agentHelp)
+		m.status.SetHelp(agentHints()...)
 	} else {
-		m.status.SetHelp(sessionHelp(m.terminal != nil))
+		m.status.SetHelp(sessionHints(m.terminal != nil)...)
 	}
 }
 

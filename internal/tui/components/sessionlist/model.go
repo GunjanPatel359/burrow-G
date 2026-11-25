@@ -4,15 +4,23 @@ package sessionlist
 import (
 	"fmt"
 	"io"
+	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/GunjanPatel359/burrow-G/internal/helpers"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
+	"github.com/GunjanPatel359/burrow-G/internal/tui/ui"
 )
+
+// searchKey is shown above the list; the list itself handles the key.
+var searchKey = key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search"))
 
 type item struct {
 	s    session.Session
@@ -111,10 +119,16 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 }
 
 func (m Model) View() string {
+	if m.Filtered() && len(m.list.VisibleItems()) == 0 {
+		// Keep the list's first line: the search box while typing.
+		top, _, _ := strings.Cut(m.list.View(), "\n")
+		msg := fmt.Sprintf("no matches for %q", m.list.FilterValue())
+		return top + "\n" + ui.EmptyState(m.theme, msg, "esc clears the search", m.w, m.h-1)
+	}
 	if m.Filtered() {
 		return m.list.View()
 	}
-	return m.theme.Muted.Render("/ search") + "\n" + m.list.View()
+	return strings.Repeat(" ", theme.Gutter) + ui.KeyHints(m.theme, searchKey) + "\n" + m.list.View()
 }
 
 // delegate draws one row: "★ Title ......... 2 hours ago".
@@ -129,14 +143,78 @@ func (delegate) Update(tea.Msg, *list.Model) tea.Cmd { return nil }
 
 func (d delegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
 	s := li.(item).s
+	t := d.theme
 	star := theme.Part{Text: "  "}
 	if s.Bookmarked {
-		star = theme.Part{Text: "★ ", Style: d.theme.Star}
+		star = theme.Part{Text: t.Glyph.Star + " ", Style: t.Star}
 	}
 	ago := helpers.TimeAgo(s.LastUsed, time.Now())
-	title := helpers.Truncate(s.Title, m.Width()-len(ago)-6)
+	title := titleParts(t, s.Title, m.MatchesForItem(index), m.Width()-len(ago)-6)
 
-	left := []theme.Part{star, {Text: title}}
-	right := []theme.Part{{Text: ago, Style: d.theme.Muted}}
-	fmt.Fprint(w, d.theme.Row(left, right, m.Width(), index == m.Index(), d.active))
+	left := append([]theme.Part{star}, title...)
+	right := []theme.Part{{Text: ago, Style: t.Muted}}
+	fmt.Fprint(w, ui.Row(t, left, right, m.Width(), index == m.Index(), d.active))
+}
+
+// titleParts cuts the title to fit, like helpers.Truncate, and draws the runes
+// the search matched in Match. matches are byte offsets into the filter text,
+// which starts with the title; offsets past it are in the folder and dropped.
+func titleParts(t theme.Theme, raw string, matches []int, width int) []theme.Part {
+	collapsed, at := collapse(raw)
+	title := helpers.Truncate(collapsed, width, t.Glyph.Ellipsis)
+	shown := []rune(title)
+	kept := len(shown) // runes of the title itself, before any tail
+	if title != collapsed {
+		if k := len(shown) - utf8.RuneCountInString(t.Glyph.Ellipsis); k >= 0 {
+			kept = k
+		}
+	}
+
+	hit := make([]bool, len(shown))
+	for _, b := range matches {
+		if b >= len(raw) {
+			continue
+		}
+		if i := at[utf8.RuneCountInString(raw[:b])]; i >= 0 && i < kept {
+			hit[i] = true
+		}
+	}
+
+	var parts []theme.Part
+	for i := 0; i < len(shown); {
+		j := i
+		for j < len(shown) && hit[j] == hit[i] {
+			j++
+		}
+		p := theme.Part{Text: string(shown[i:j])}
+		if hit[i] {
+			p.Style = t.Match
+		}
+		parts = append(parts, p)
+		i = j
+	}
+	return parts
+}
+
+// collapse joins the words of s with single spaces, as helpers.Truncate does,
+// and maps each rune of s to its place in the result (-1 for dropped spaces).
+func collapse(s string) (string, []int) {
+	var b strings.Builder
+	at := make([]int, 0, len(s))
+	n, gap := 0, false
+	for _, r := range s {
+		if unicode.IsSpace(r) {
+			gap = n > 0
+			at = append(at, -1)
+			continue
+		}
+		if gap {
+			b.WriteRune(' ')
+			n, gap = n+1, false
+		}
+		b.WriteRune(r)
+		at = append(at, n)
+		n++
+	}
+	return b.String(), at
 }

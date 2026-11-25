@@ -10,7 +10,7 @@ import (
 )
 
 func newTest() Model {
-	m := New(theme.Get(theme.Default))
+	m := New(theme.Get(theme.Default, theme.Env{}))
 	m.SetSize(20, 10)
 	m.SetAgents([]Agent{{Name: "claude", Count: 59}, {Name: "qoder", Count: 7}})
 	return m

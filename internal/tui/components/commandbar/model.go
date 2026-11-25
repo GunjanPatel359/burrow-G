@@ -10,6 +10,7 @@ import (
 	"github.com/GunjanPatel359/burrow-G/internal/command"
 	"github.com/GunjanPatel359/burrow-G/internal/command/event"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
+	"github.com/GunjanPatel359/burrow-G/internal/tui/ui"
 )
 
 // RanMsg: enter succeeded and the bar has closed.
@@ -210,7 +211,7 @@ func (m Model) Rows() []string {
 		if s.Key != "" {
 			right = []theme.Part{{Text: s.Key, Style: m.theme.Muted}}
 		}
-		rows = append(rows, m.theme.Row(left, right, m.width, i == m.selected, true))
+		rows = append(rows, ui.SurfaceRow(m.theme, left, right, m.width, i == m.selected))
 	}
 	return rows
 }

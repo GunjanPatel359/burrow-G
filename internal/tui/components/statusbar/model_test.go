@@ -5,15 +5,18 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
+
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
 )
 
 func TestView(t *testing.T) {
-	m := New(theme.Get(theme.Default))
-	m.SetHelp("q quit")
+	m := New(theme.Get(theme.Default, theme.Env{}))
+	m.SetHelp(key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")))
 
 	m.Busy("refreshing…")
-	if v := m.View(); !strings.Contains(v, "● refreshing…") || !strings.Contains(v, "q quit") {
+	if v := m.View(); !strings.Contains(v, "⠋ refreshing…") || !strings.Contains(v, "q quit") {
 		t.Errorf("busy view = %q", v)
 	}
 
@@ -30,5 +33,40 @@ func TestView(t *testing.T) {
 	m.Clear()
 	if v := m.View(); strings.Contains(v, "●") {
 		t.Errorf("cleared view should have no dot: %q", v)
+	}
+}
+
+func TestSpinner(t *testing.T) {
+	m := New(theme.Get(theme.Default, theme.Env{ASCII: true}))
+	if m.Tick() != nil {
+		t.Error("idle status bar should not tick")
+	}
+
+	first := m.Busy("refreshing...")
+	if first == nil {
+		t.Fatal("Busy should start the spinner")
+	}
+	if m.Busy("opening...") != nil {
+		t.Error("Busy while spinning should not start a second spinner")
+	}
+	if !strings.Contains(m.View(), "| opening...") {
+		t.Errorf("ASCII spinner should start on |: %q", m.View())
+	}
+
+	tick := first()
+	m, next := m.Update(tick)
+	if next == nil || !strings.Contains(m.View(), "/ opening...") {
+		t.Errorf("a tick should move to the next frame and ask for another: %q", m.View())
+	}
+
+	m.OK("opened")
+	if _, cmd := m.Update(tick); cmd != nil {
+		t.Error("ticks after OK should be dropped")
+	}
+
+	// A tick from the spinner before this one is dropped too.
+	m.Busy("refreshing...")
+	if _, cmd := m.Update(tick.(spinner.TickMsg)); cmd != nil {
+		t.Error("a tick from an earlier spinner should be dropped")
 	}
 }

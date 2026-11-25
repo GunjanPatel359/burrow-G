@@ -31,7 +31,7 @@ func newBarWith(t *testing.T, themes []string) Model {
 		Themes:  themes,
 		Current: func() string { return "" },
 	})
-	m := New(theme.Get(theme.Default), svc)
+	m := New(theme.Get(theme.Default, theme.Env{}), svc)
 	m.SetWidth(60)
 	m.Open()
 	return m

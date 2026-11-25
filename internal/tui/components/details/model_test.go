@@ -10,7 +10,7 @@ import (
 )
 
 func TestView_Session(t *testing.T) {
-	m := New(theme.Get(theme.Default))
+	m := New(theme.Get(theme.Default, theme.Env{}))
 	m.SetWidth(80)
 	s := session.Session{ID: "aaa-111", Dir: "/tmp/proj", LastUsed: time.Now().Add(-2 * time.Hour)}
 	m.Show(s, []string{"claude", "--resume", "aaa-111"})
@@ -21,20 +21,20 @@ func TestView_Session(t *testing.T) {
 			t.Errorf("view is missing %q:\n%s", want, v)
 		}
 	}
-	if n := strings.Count(v, "\n") + 1; n != Height {
-		t.Errorf("view has %d lines, want %d", n, Height)
+	if n := strings.Count(v, "\n") + 1; n != theme.DetailsHeight {
+		t.Errorf("view has %d lines, want %d", n, theme.DetailsHeight)
 	}
 }
 
 func TestView_Empty(t *testing.T) {
-	m := New(theme.Get(theme.Default))
+	m := New(theme.Get(theme.Default, theme.Env{}))
 	m.Clear()
 
 	v := m.View()
 	if !strings.Contains(v, "no sessions") {
 		t.Errorf("empty view = %q", v)
 	}
-	if n := strings.Count(v, "\n") + 1; n != Height {
-		t.Errorf("empty view has %d lines, want %d", n, Height)
+	if n := strings.Count(v, "\n") + 1; n != theme.DetailsHeight {
+		t.Errorf("empty view has %d lines, want %d", n, theme.DetailsHeight)
 	}
 }

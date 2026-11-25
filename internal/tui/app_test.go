@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -50,7 +51,7 @@ func testModelWith(t *testing.T, term launch.Terminal, dir string) (model, *db.D
 	qoder := fakeSource{name: "qoder", list: []session.Session{
 		{Agent: "qoder", ID: "qqq", Title: "Qoder work", Dir: "/tmp", LastUsed: time.Now()},
 	}}
-	return newModel(store, []session.Source{claude, qoder}, "/home/u", term), store
+	return newModel(store, []session.Source{claude, qoder}, "/home/u", term, theme.Env{}, alwaysDark), store
 }
 
 var (
@@ -263,7 +264,7 @@ func twoSessions(t *testing.T) (model, *db.DB) {
 		{Agent: "claude", ID: "new", Title: "Newer", Dir: "/tmp", LastUsed: time.Now()},
 		{Agent: "claude", ID: "old", Title: "Older", Dir: "/tmp", LastUsed: time.Now().Add(-time.Hour)},
 	}}
-	m := newModel(store, []session.Source{claude}, "/home/u", nil)
+	m := newModel(store, []session.Source{claude}, "/home/u", nil, theme.Env{}, alwaysDark)
 	m = deliver(m, m.Init())
 	m, _ = press(m, enter)
 	return m, store
@@ -309,7 +310,7 @@ func TestBookmarkSurvivesRefreshAndRestart(t *testing.T) {
 		t.Errorf("after refresh: %q", row)
 	}
 
-	again := newModel(store, m.sources, "/home/u", nil)
+	again := newModel(store, m.sources, "/home/u", nil, theme.Env{}, alwaysDark)
 	if row := firstRow(again); !strings.Contains(row, "★") || !strings.Contains(row, "Older") {
 		t.Errorf("after restart: %q", row)
 	}
@@ -425,7 +426,7 @@ func TestSavedThemeLoadedAtStart(t *testing.T) {
 	if err := store.SetSetting("theme", "dracula"); err != nil {
 		t.Fatal(err)
 	}
-	m = newModel(store, m.sources, "/home/u", nil)
+	m = newModel(store, m.sources, "/home/u", nil, theme.Env{}, alwaysDark)
 	if m.theme.Name != "dracula" {
 		t.Errorf("theme = %q", m.theme.Name)
 	}
@@ -436,7 +437,7 @@ func TestUnknownSavedThemeFallsBack(t *testing.T) {
 	if err := store.SetSetting("theme", "gone"); err != nil {
 		t.Fatal(err)
 	}
-	m = newModel(store, m.sources, "/home/u", nil)
+	m = newModel(store, m.sources, "/home/u", nil, theme.Env{}, alwaysDark)
 	if m.theme.Name != theme.Default || strings.Contains(m.status.View(), "error") {
 		t.Errorf("theme %q, status %q", m.theme.Name, m.status.View())
 	}
@@ -593,15 +594,173 @@ func TestThemePaintsBackground(t *testing.T) {
 	last := func() lipgloss.Color { return painted[len(painted)-1] }
 
 	m = pressAll(typeText(pressAll(m, ctrlK), "theme "), down) // preview
-	if len(painted) == 0 || last() == theme.Get(theme.Default).Background {
+	if len(painted) == 0 || last() == theme.Get(theme.Default, theme.Env{}).Background {
 		t.Fatalf("preview should paint the previewed background, painted %v", painted)
 	}
 	m = pressAll(pressAll(m, esc), esc) // close → back to the saved theme
-	if last() != theme.Get(theme.Default).Background {
+	if last() != theme.Get(theme.Default, theme.Env{}).Background {
 		t.Errorf("closing should paint the saved background, got %q", last())
 	}
 	m = pressAll(typeText(pressAll(m, ctrlK), "theme nord"), enter)
-	if last() != theme.Get("nord").Background {
-		t.Errorf("theme nord should paint %q, got %q", theme.Get("nord").Background, last())
+	if last() != theme.Get("nord", theme.Env{}).Background {
+		t.Errorf("theme nord should paint %q, got %q", theme.Get("nord", theme.Env{}).Background, last())
+	}
+}
+
+func alwaysDark() bool { return true }
+
+// With no saved theme a light terminal starts light; a saved one always wins.
+func TestFirstThemeFollowsTerminal(t *testing.T) {
+	m, store := testModel(t)
+	light := func() bool { return false }
+	if got := newModel(store, m.sources, "/home/u", nil, theme.Env{}, light).theme.Name; got != theme.DefaultLight {
+		t.Errorf("light terminal started on %q, want %q", got, theme.DefaultLight)
+	}
+	if err := store.SetSetting("theme", "nord"); err != nil {
+		t.Fatal(err)
+	}
+	if got := newModel(store, m.sources, "/home/u", nil, theme.Env{}, light).theme.Name; got != "nord" {
+		t.Errorf("saved nord started on %q", got)
+	}
+}
+
+// At 16 colors the terminal keeps its own background, also while previewing.
+func TestColor16NeverPaints(t *testing.T) {
+	_, store := testModel(t)
+	m := newModel(store, nil, "/home/u", nil, theme.Env{Depth: theme.Color16}, alwaysDark)
+	var painted []lipgloss.Color
+	m.paint = func(c lipgloss.Color) { painted = append(painted, c) }
+	m = pressAll(typeText(pressAll(m, ctrlK), "theme nord"), enter)
+	for _, c := range painted {
+		if c != "" {
+			t.Errorf("painted %q at 16 colors", c)
+		}
+	}
+}
+
+// Hints and the help command's key list come from the same bindings, with
+// arrows drawn from the glyph set.
+func TestHintsComeFromBindings(t *testing.T) {
+	_, store := testModel(t)
+	sources := []session.Source{fakeSource{name: "claude"}}
+	m := newModel(store, sources, "/home/u", nil, theme.Env{ASCII: true}, alwaysDark)
+
+	if v := m.status.View(); !strings.Contains(v, "^/v agent") || !strings.Contains(v, "enter/> sessions") {
+		t.Errorf("agent hints = %q", v)
+	}
+	m = pressAll(m, tea.KeyMsg{Type: tea.KeyRight})
+	if v := m.status.View(); !strings.Contains(v, "^/v move") || !strings.Contains(v, "< agents") {
+		t.Errorf("session hints = %q", v)
+	}
+	m = pressAll(typeText(pressAll(m, ctrlK), "help"), enter)
+	help := strings.Join(m.help, "\n")
+	for _, want := range []string{"^/v agent", "^/v move", "enter resume", "ctrl+k commands"} {
+		if !strings.Contains(help, want) {
+			t.Errorf("help lacks %q:\n%s", want, help)
+		}
+	}
+	if strings.Count(help, "q quit") != 1 {
+		t.Errorf("help should list each key once:\n%s", help)
+	}
+}
+
+func TestNarrowWindowShowsOnePane(t *testing.T) {
+	m, _ := testModel(t)
+	m = deliver(m, m.Init())
+	m = pressAll(m, tea.WindowSizeMsg{Width: 50, Height: 20})
+
+	v := m.View()
+	if !strings.Contains(v, "Agents") || strings.Contains(v, "From files") || strings.Contains(v, "│") {
+		t.Errorf("narrow window should show only the agents pane:\n%s", v)
+	}
+	m = pressAll(m, tea.KeyMsg{Type: tea.KeyRight})
+	v = m.View()
+	if strings.Contains(v, "Agents") || !strings.Contains(v, "From files") {
+		t.Errorf("→ should switch to the sessions pane:\n%s", v)
+	}
+	if !strings.Contains(m.status.View(), "← agents") {
+		t.Errorf("session hints should offer the way back: %q", m.status.View())
+	}
+	if lines(v) != m.height {
+		t.Errorf("view is %d lines, want %d", lines(v), m.height)
+	}
+}
+
+func TestShortWindowHidesDetails(t *testing.T) {
+	m, _ := testModel(t)
+	m = deliver(m, m.Init())
+	m = pressAll(m, tea.WindowSizeMsg{Width: 80, Height: 20})
+	if !strings.Contains(m.View(), "resume") {
+		t.Fatalf("details should show in a tall window:\n%s", m.View())
+	}
+	m = pressAll(m, tea.WindowSizeMsg{Width: 80, Height: 11})
+	v := m.View()
+	if strings.Contains(v, "folder") || !strings.Contains(v, "From files") {
+		t.Errorf("short window should hide details but keep the list:\n%s", v)
+	}
+	if lines(v) != m.height {
+		t.Errorf("view is %d lines, want %d", lines(v), m.height)
+	}
+}
+
+func TestTooSmallWindow(t *testing.T) {
+	m, _ := testModel(t)
+	m = pressAll(m, tea.WindowSizeMsg{Width: 39, Height: 20})
+	v := m.View()
+	if !strings.Contains(v, "make the window bigger") || !strings.Contains(v, "needs 40×8") || strings.Contains(v, "Agents") {
+		t.Errorf("tiny window should show only the note:\n%s", v)
+	}
+	if _, cmd := press(m, keyQ); !quits(cmd) {
+		t.Error("q should still quit")
+	}
+	m = pressAll(m, tea.WindowSizeMsg{Width: 40, Height: 8})
+	if strings.Contains(m.View(), "make the window bigger") {
+		t.Errorf("40×8 is big enough:\n%s", m.View())
+	}
+}
+
+func TestEmptyStates(t *testing.T) {
+	_, store := testModel(t)
+	m := newModel(store, []session.Source{fakeSource{name: "codex"}}, "/home/u", nil, theme.Env{}, alwaysDark)
+	m = deliver(m, m.Init())
+	if v := m.View(); !strings.Contains(v, "no sessions yet") || !strings.Contains(v, "start one in Codex and press r") {
+		t.Errorf("an agent with no sessions should say how to get one:\n%s", v)
+	}
+
+	m = newModel(store, nil, "/home/u", nil, theme.Env{}, alwaysDark)
+	if v := m.View(); !strings.Contains(v, "no agents found") || !strings.Contains(v, "burrow-g reads ~/.claude") {
+		t.Errorf("no agents should say where burrow-g looks:\n%s", v)
+	}
+}
+
+func TestBusyStatusSpins(t *testing.T) {
+	m, _ := testModel(t)
+	var tick tea.Msg
+	for _, msg := range run(m.Init()) {
+		if _, ok := msg.(spinner.TickMsg); ok {
+			tick = msg
+		}
+	}
+	if tick == nil {
+		t.Fatal("Init should start the spinner of the first refresh")
+	}
+	before := m.status.View()
+	next, cmd := m.Update(tick)
+	if cmd == nil || next.(model).status.View() == before {
+		t.Errorf("a tick should move the spinner: %q", before)
+	}
+}
+
+func TestThemeWithoutColorsSaysWhy(t *testing.T) {
+	for _, d := range []theme.Depth{theme.Color16, theme.NoColor} {
+		_, store := testModel(t)
+		m := newModel(store, nil, "/home/u", nil, theme.Env{Depth: d}, alwaysDark)
+		m = pressAll(typeText(pressAll(m, ctrlK), "theme nord"), enter)
+		if v := m.status.View(); !strings.Contains(v, `theme "nord" (colors need truecolor or 256)`) {
+			t.Errorf("depth %v: status = %q", d, v)
+		}
+		if got, _ := store.Setting("theme"); got != "nord" {
+			t.Errorf("depth %v: the choice should still be saved, got %q", d, got)
+		}
 	}
 }
