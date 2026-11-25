@@ -25,3 +25,19 @@ _The spec has no numbered acceptance criteria, so these steps come from its stan
 - 256 values ← `Tone.X256`: the 256 step, plus `TestPaletteContrast`
 - 16 color values ← shared map: the 16 color step, plus `TestGet_Color16`
 - saved theme ← `settings` key `theme`: the saved `nord` step
+
+## Step 2: primitives
+
+### Commands
+- [ ] `go test ./internal/tui/ui/ -v` → Row, SurfaceRow, PaneHeader, Divider, VRule, KeyHints, StatusDot, Dialog and Overlay tests pass (section 6)
+- [ ] `go test ./internal/tui/ -run TestHintsComeFromBindings` → status hints and the help command's key list both come from `key.Binding` help, arrows from the glyph set (section 8)
+- [ ] `rg -n '[▌★●│─·↑↓←→…]|lipgloss\.Color\(' --type go internal/tui | rg -v '_test.go|internal/tui/theme/'` → only comments match (section 1)
+
+### Terminal, by hand
+- [ ] Press `→`: the "Agents" header turns Muted bold and the sessions header Accent bold; `←` swaps them back (sections 6, 7)
+- [ ] The status line hints draw keys in Accent and words in Muted, joined by `·`, for example `↑/↓ move · enter resume` (section 8)
+- [ ] `ctrl+k`: the suggestions sit on the Surface background, filled through the gap and the right edge; the selected one uses the Selected background with the marker (section 6)
+- [ ] `ctrl+k`, `help`, `enter`: the Keys list shows each hint once, spelled like the status line (section 8)
+- [ ] `LANG=C LC_ALL= ./bin/burrow-g`: arrows read `^/v` and `</>`, rules are `|` and `-`, the separator is `.`, the star is `*`, long titles end in `...` and still fit the row (sections 4, Exceptions)
+- [ ] `./bin/burrow-g list` (CLI): long titles still end in `…` (Exceptions)
+- [ ] Dialog and Overlay have no user yet (delete will be the first); their look is covered by `TestDialog` and `TestOverlay` (section 6)
