@@ -1,33 +1,33 @@
-// Package statusbar is the bottom line: a coloured status dot plus key help.
+// Package statusbar is the bottom line: a colored status dot plus key help.
 package statusbar
 
 import (
-	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/bubbles/key"
 
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
+	"github.com/GunjanPatel359/burrow-G/internal/tui/ui"
 )
 
 type Model struct {
-	theme theme.Theme
-	text  string
-	style lipgloss.Style
-	help  string
+	theme  theme.Theme
+	status ui.Status
+	help   []key.Binding
 }
 
 func New(t theme.Theme) Model { return Model{theme: t} }
 
-func (m *Model) SetTheme(t theme.Theme) { m.theme = t }
-func (m *Model) SetHelp(help string)    { m.help = help }
+func (m *Model) SetTheme(t theme.Theme)          { m.theme = t }
+func (m *Model) SetHelp(bindings ...key.Binding) { m.help = bindings }
 
-func (m *Model) Busy(text string) { m.text, m.style = text, m.theme.Busy }
-func (m *Model) OK(text string)   { m.text, m.style = text, m.theme.OK }
-func (m *Model) Error(err error)  { m.text, m.style = "error: "+err.Error(), m.theme.Error }
-func (m *Model) Clear()           { m.text = "" }
+func (m *Model) Busy(text string) { m.status = ui.Status{Kind: ui.Busy, Text: text} }
+func (m *Model) OK(text string)   { m.status = ui.Status{Kind: ui.OK, Text: text} }
+func (m *Model) Error(err error)  { m.status = ui.Status{Kind: ui.Error, Text: "error: " + err.Error()} }
+func (m *Model) Clear()           { m.status = ui.Status{} }
 
 func (m Model) View() string {
 	dot := ""
-	if m.text != "" {
-		dot = m.style.Render("● "+m.text) + "   "
+	if m.status.Text != "" {
+		dot = ui.StatusDot(m.theme, m.status) + "   "
 	}
-	return " " + dot + m.theme.Muted.Render(m.help)
+	return " " + dot + ui.KeyHints(m.theme, m.help...)
 }

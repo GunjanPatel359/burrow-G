@@ -6,18 +6,22 @@ func TestTruncate(t *testing.T) {
 	cases := []struct {
 		in   string
 		max  int
+		tail string
 		want string
 	}{
-		{"hello", 10, "hello"},
-		{"hello world", 8, "hello w…"},
-		{"line one\nline  two", 50, "line one line two"},
-		{"héllo wörld", 6, "héllo…"},
+		{"hello", 10, "…", "hello"},
+		{"hello world", 8, "…", "hello w…"},
+		{"line one\nline  two", 50, "…", "line one line two"},
+		{"héllo wörld", 6, "…", "héllo…"},
+		{"hello world", 8, "...", "hello..."},
+		{"hello world", 2, "...", "he"},
+		{"hello world", 0, "…", ""},
 	}
 
 	for _, c := range cases {
-		got := Truncate(c.in, c.max)
+		got := Truncate(c.in, c.max, c.tail)
 		if got != c.want {
-			t.Errorf("Truncate(%q, %d) = %q, want %q", c.in, c.max, got, c.want)
+			t.Errorf("Truncate(%q, %d, %q) = %q, want %q", c.in, c.max, c.tail, got, c.want)
 		}
 	}
 }

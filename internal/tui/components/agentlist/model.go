@@ -10,6 +10,7 @@ import (
 
 	"github.com/GunjanPatel359/burrow-G/internal/helpers"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
+	"github.com/GunjanPatel359/burrow-G/internal/tui/ui"
 )
 
 // SelectedMsg is sent when the cursor moves to another agent.
@@ -110,6 +111,6 @@ func (delegate) Update(tea.Msg, *list.Model) tea.Cmd { return nil }
 func (d delegate) Render(w io.Writer, m list.Model, index int, item list.Item) {
 	a := item.(Agent)
 	count := fmt.Sprint(a.Count)
-	name := helpers.Truncate(DisplayName(a.Name), m.Width()-len(count)-3)
-	fmt.Fprint(w, d.theme.Row(theme.Plain(name), theme.Plain(count), m.Width(), index == m.Index(), d.active))
+	name := helpers.Truncate(DisplayName(a.Name), m.Width()-len(count)-3, d.theme.Glyph.Ellipsis)
+	fmt.Fprint(w, ui.Row(d.theme, theme.Plain(name), theme.Plain(count), m.Width(), index == m.Index(), d.active))
 }

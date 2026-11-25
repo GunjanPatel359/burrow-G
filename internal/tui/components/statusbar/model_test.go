@@ -5,12 +5,14 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/charmbracelet/bubbles/key"
+
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
 )
 
 func TestView(t *testing.T) {
 	m := New(theme.Get(theme.Default, theme.Env{}))
-	m.SetHelp("q quit")
+	m.SetHelp(key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")))
 
 	m.Busy("refreshing…")
 	if v := m.View(); !strings.Contains(v, "● refreshing…") || !strings.Contains(v, "q quit") {

@@ -84,7 +84,7 @@ func findSource(sources []session.Source, agent string) (session.Source, error) 
 func printList(w io.Writer, list []session.Session, home string, now time.Time) {
 	tw := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 	for _, s := range list {
-		title := helpers.Truncate(s.Title, 50)
+		title := helpers.Truncate(s.Title, 50, "…")
 		if s.Bookmarked {
 			title = "★ " + title
 		}

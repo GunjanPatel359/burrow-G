@@ -47,7 +47,7 @@ func (c Source) List() ([]session.Session, error) {
 
 		title := names[r.ID]
 		if title == "" {
-			title = helpers.Truncate(r.Prompt, 60)
+			title = helpers.Truncate(r.Prompt, 60, "…")
 		}
 		list = append(list, session.Session{
 			Agent:    "codex",

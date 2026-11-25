@@ -70,7 +70,7 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 		Current: current,
 		Sources: sources,
 		Home:    home,
-		Keys:    keyLines(term != nil),
+		Keys:    keyLines(term != nil, t.Glyph),
 	})
 	m := model{
 		store:    store,
@@ -91,7 +91,7 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 	if len(sources) > 0 {
 		m.agent = sources[0]
 		m.loadSessions()
-		m.status.Busy("refreshing…")
+		m.status.Busy("refreshing" + m.theme.Glyph.Ellipsis)
 	}
 	m.setFocus(agentPane)
 	m.resize()
@@ -216,7 +216,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case m.focus == sessionPane && key.Matches(msg, keys.Enter) && m.terminal != nil:
 			if s, ok := m.sessions.Selected(); ok {
-				m.status.Busy("opening…")
+				m.status.Busy("opening" + m.theme.Glyph.Ellipsis)
 				return m, openTab(m.terminal, s, m.agent.ResumeCommand(s))
 			}
 			return m, nil
@@ -262,12 +262,12 @@ func (m *model) apply(e event.Event) tea.Cmd {
 		if m.agent == nil {
 			return nil
 		}
-		m.status.Busy("refreshing…")
+		m.status.Busy("refreshing" + m.theme.Glyph.Ellipsis)
 		return refresh(m.store, m.agent)
 	case event.ShowHelp:
 		m.help = strings.Split(strings.TrimSuffix(e.Text, "\n"), "\n")
 		m.helpTop = 0
-		m.status.SetHelp(helpViewHelp)
+		m.status.SetHelp(helpViewHints()...)
 	case event.Quit:
 		return tea.Quit
 	default:
@@ -309,7 +309,7 @@ func (m *model) selectAgent(name string) tea.Cmd {
 	}
 	m.sessions.ResetCursor()
 	m.loadSessions()
-	m.status.Busy("refreshing…")
+	m.status.Busy("refreshing" + m.theme.Glyph.Ellipsis)
 	return refresh(m.store, m.agent)
 }
 
@@ -318,9 +318,9 @@ func (m *model) setFocus(p pane) {
 	m.agents.SetFocused(p == agentPane)
 	m.sessions.SetFocused(p == sessionPane)
 	if p == agentPane {
-		m.status.SetHelp(agentHelp)
+		m.status.SetHelp(agentHints()...)
 	} else {
-		m.status.SetHelp(sessionHelp(m.terminal != nil))
+		m.status.SetHelp(sessionHints(m.terminal != nil)...)
 	}
 }
 

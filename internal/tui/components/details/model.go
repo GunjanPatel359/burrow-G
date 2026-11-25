@@ -34,18 +34,21 @@ func (m *Model) Clear() {
 
 func (m Model) View() string {
 	if m.session == nil {
-		return m.theme.Muted.Render(" no sessions") + strings.Repeat("\n", theme.DetailsHeight-1)
+		return m.theme.Muted.Render(strings.Repeat(" ", theme.Gutter)+"no sessions") + strings.Repeat("\n", theme.DetailsHeight-1)
 	}
 	s := m.session
-	fit := func(v string) string { return helpers.Truncate(v, m.width-10) }
 	t := m.theme
+	pad := strings.Repeat(" ", theme.Gutter)
+	fit := func(v string) string {
+		return helpers.Truncate(v, m.width-theme.Gutter-theme.LabelWidth-1, t.Glyph.Ellipsis)
+	}
 
 	lines := []string{
-		" " + t.Label.Render("id") + fit(s.ID),
-		" " + t.Label.Render("folder") + t.Folder.Render(fit(s.Dir)),
-		" " + t.Label.Render("resume") + fit(strings.Join(m.resume, " ")),
-		" " + t.Label.Render("used") + helpers.TimeAgo(s.LastUsed, time.Now()) +
-			t.Muted.Render(" · "+s.LastUsed.Format("2006-01-02 15:04")),
+		pad + t.Label.Render("id") + fit(s.ID),
+		pad + t.Label.Render("folder") + t.Folder.Render(fit(s.Dir)),
+		pad + t.Label.Render("resume") + fit(strings.Join(m.resume, " ")),
+		pad + t.Label.Render("used") + helpers.TimeAgo(s.LastUsed, time.Now()) +
+			t.Muted.Render(" "+t.Glyph.Sep+" "+s.LastUsed.Format("2006-01-02 15:04")),
 	}
 	return strings.Join(lines, "\n")
 }

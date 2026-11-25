@@ -636,3 +636,29 @@ func TestColor16NeverPaints(t *testing.T) {
 		}
 	}
 }
+
+// Hints and the help command's key list come from the same bindings, with
+// arrows drawn from the glyph set.
+func TestHintsComeFromBindings(t *testing.T) {
+	_, store := testModel(t)
+	sources := []session.Source{fakeSource{name: "claude"}}
+	m := newModel(store, sources, "/home/u", nil, theme.Env{ASCII: true}, alwaysDark)
+
+	if v := m.status.View(); !strings.Contains(v, "^/v agent") || !strings.Contains(v, "enter/> sessions") {
+		t.Errorf("agent hints = %q", v)
+	}
+	m = pressAll(m, tea.KeyMsg{Type: tea.KeyRight})
+	if v := m.status.View(); !strings.Contains(v, "^/v move") || !strings.Contains(v, "< agents") {
+		t.Errorf("session hints = %q", v)
+	}
+	m = pressAll(typeText(pressAll(m, ctrlK), "help"), enter)
+	help := strings.Join(m.help, "\n")
+	for _, want := range []string{"^/v agent", "^/v move", "enter resume", "ctrl+k commands"} {
+		if !strings.Contains(help, want) {
+			t.Errorf("help lacks %q:\n%s", want, help)
+		}
+	}
+	if strings.Count(help, "q quit") != 1 {
+		t.Errorf("help should list each key once:\n%s", help)
+	}
+}

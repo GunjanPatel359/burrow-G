@@ -8,6 +8,7 @@ import (
 
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/agentlist"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
+	"github.com/GunjanPatel359/burrow-G/internal/tui/ui"
 )
 
 // Screen layout:
@@ -34,12 +35,10 @@ func (m model) View() string {
 	h := m.bodyHeight()
 	t := m.theme
 
-	left := t.Header.Render(" Agents") + "\n" + m.agents.View()
+	left := ui.PaneHeader(t, "Agents", m.focus == agentPane) + "\n" + m.agents.View()
 	left = lipgloss.NewStyle().Width(theme.AgentsWidth).Height(h).MaxHeight(h).Render(left)
 
-	sep := t.Muted.Render(strings.TrimSuffix(strings.Repeat("│\n", h), "\n"))
-
-	body := lipgloss.JoinHorizontal(lipgloss.Top, left, sep, m.rightView())
+	body := lipgloss.JoinHorizontal(lipgloss.Top, left, ui.VRule(t, h), m.rightView())
 	rows := strings.Split(body, "\n")
 	rows = rows[:min(len(rows), h)]
 
@@ -52,7 +51,7 @@ func (m model) View() string {
 		sugg = sugg[:min(len(sugg), len(rows))]
 		copy(rows[len(rows)-len(sugg):], sugg)
 	}
-	return strings.Join(rows, "\n") + "\n" + t.Muted.Render(strings.Repeat("─", m.width)) + "\n" + bottom
+	return strings.Join(rows, "\n") + "\n" + ui.Divider(t, m.width) + "\n" + bottom
 }
 
 // rightView is the sessions list and details, or the help text when shown.
@@ -60,14 +59,15 @@ func (m model) rightView() string {
 	h := m.bodyHeight()
 	t := m.theme
 	if m.help != nil {
-		text := t.Text.Render(" " + strings.Join(m.help[m.helpTop:], "\n "))
+		pad := strings.Repeat(" ", theme.Gutter)
+		text := t.Text.Render(pad + strings.Join(m.help[m.helpTop:], "\n"+pad))
 		text = lipgloss.NewStyle().MaxWidth(m.rightWidth()).Render(text) // cut, don't wrap
 		return lipgloss.NewStyle().Width(m.rightWidth()).Height(h).MaxHeight(h).Render(text)
 	}
 	list := lipgloss.NewStyle().Height(m.listHeight()).MaxHeight(m.listHeight()).Render(m.sessions.View())
-	return t.Header.Render(" "+m.sessionsTitle()) + "\n" +
+	return ui.PaneHeader(t, m.sessionsTitle(), m.focus == sessionPane) + "\n" +
 		list + "\n" +
-		t.Muted.Render(strings.Repeat("─", m.rightWidth())) + "\n" +
+		ui.Divider(t, m.rightWidth()) + "\n" +
 		m.details.View()
 }
 
@@ -75,5 +75,5 @@ func (m model) sessionsTitle() string {
 	if m.agent == nil {
 		return "No agents"
 	}
-	return fmt.Sprintf("%s · %d", agentlist.DisplayName(m.agent.Name()), m.sessions.Len())
+	return fmt.Sprintf("%s %s %d", agentlist.DisplayName(m.agent.Name()), m.theme.Glyph.Sep, m.sessions.Len())
 }

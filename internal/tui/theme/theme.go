@@ -4,7 +4,6 @@ package theme
 import (
 	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/charmbracelet/lipgloss"
 )
@@ -15,6 +14,7 @@ type Theme struct {
 	Glyph GlyphSet
 
 	Header           lipgloss.Style
+	Accent           lipgloss.Style
 	Muted            lipgloss.Style
 	Border           lipgloss.Style
 	Text             lipgloss.Style
@@ -52,6 +52,7 @@ func Get(name string, env Env) Theme {
 		Glyph: Unicode,
 
 		Header:           fg("Accent", p.Accent).Bold(true),
+		Accent:           fg("Accent", p.Accent),
 		Muted:            fg("Muted", p.Muted),
 		Border:           fg("Border", p.Border),
 		Text:             fg("Text", p.Text),
@@ -134,30 +135,3 @@ type Part struct {
 
 // Plain is a row piece in the row's normal colour.
 func Plain(text string) []Part { return []Part{{Text: text}} }
-
-// Row draws one list row of the given width: left text, right text at the end,
-// and a marker plus highlight when selected. Each part is drawn on top of
-// the row's style, so the highlight also runs through coloured parts like ★.
-func (t Theme) Row(left, right []Part, width int, selected, active bool) string {
-	base, marker := t.Text, " "
-	if selected {
-		marker = t.Marker.Render(t.Glyph.Marker)
-	}
-	if selected && active {
-		base = t.Selected
-	}
-
-	draw := func(parts []Part) (string, int) {
-		var b strings.Builder
-		w := 0
-		for _, p := range parts {
-			b.WriteString(p.Style.Inherit(base).Render(p.Text))
-			w += lipgloss.Width(p.Text)
-		}
-		return b.String(), w
-	}
-	l, lw := draw(left)
-	r, rw := draw(right)
-	gap := base.Render(strings.Repeat(" ", max(width-2-lw-rw, 1)))
-	return marker + l + gap + r + " "
-}

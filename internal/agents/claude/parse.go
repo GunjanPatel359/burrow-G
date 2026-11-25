@@ -71,7 +71,7 @@ func parseFile(path string) (title, cwd string, err error) {
 	}
 
 	if title == "" {
-		title = helpers.Truncate(firstPrompt, 60)
+		title = helpers.Truncate(firstPrompt, 60, "…")
 	}
 	return title, cwd, nil
 }

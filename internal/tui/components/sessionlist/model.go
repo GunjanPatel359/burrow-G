@@ -4,15 +4,21 @@ package sessionlist
 import (
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/GunjanPatel359/burrow-G/internal/helpers"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
+	"github.com/GunjanPatel359/burrow-G/internal/tui/ui"
 )
+
+// searchKey is shown above the list; the list itself handles the key.
+var searchKey = key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search"))
 
 type item struct {
 	s    session.Session
@@ -114,7 +120,7 @@ func (m Model) View() string {
 	if m.Filtered() {
 		return m.list.View()
 	}
-	return m.theme.Muted.Render("/ search") + "\n" + m.list.View()
+	return strings.Repeat(" ", theme.Gutter) + ui.KeyHints(m.theme, searchKey) + "\n" + m.list.View()
 }
 
 // delegate draws one row: "★ Title ......... 2 hours ago".
@@ -129,14 +135,15 @@ func (delegate) Update(tea.Msg, *list.Model) tea.Cmd { return nil }
 
 func (d delegate) Render(w io.Writer, m list.Model, index int, li list.Item) {
 	s := li.(item).s
+	t := d.theme
 	star := theme.Part{Text: "  "}
 	if s.Bookmarked {
-		star = theme.Part{Text: "★ ", Style: d.theme.Star}
+		star = theme.Part{Text: t.Glyph.Star + " ", Style: t.Star}
 	}
 	ago := helpers.TimeAgo(s.LastUsed, time.Now())
-	title := helpers.Truncate(s.Title, m.Width()-len(ago)-6)
+	title := helpers.Truncate(s.Title, m.Width()-len(ago)-6, t.Glyph.Ellipsis)
 
 	left := []theme.Part{star, {Text: title}}
-	right := []theme.Part{{Text: ago, Style: d.theme.Muted}}
-	fmt.Fprint(w, d.theme.Row(left, right, m.Width(), index == m.Index(), d.active))
+	right := []theme.Part{{Text: ago, Style: t.Muted}}
+	fmt.Fprint(w, ui.Row(t, left, right, m.Width(), index == m.Index(), d.active))
 }
