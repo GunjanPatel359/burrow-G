@@ -66,3 +66,28 @@ func TestSurfaceRow(t *testing.T) {
 		t.Errorf("16 color selection should reverse: %q", row)
 	}
 }
+
+func TestRow_Unfocused(t *testing.T) {
+	withProfile(t, termenv.TrueColor)
+	th := plainTheme()
+	focused := Row(th, theme.Plain("Codex"), nil, 20, true, true)
+	unfocused := Row(th, theme.Plain("Codex"), nil, 20, true, false)
+	if !strings.HasPrefix(visible(unfocused), "▌") {
+		t.Errorf("an unfocused selection keeps its marker: %q", visible(unfocused))
+	}
+	if focused == unfocused {
+		t.Error("unfocused selection should look dimmer than focused")
+	}
+	if !strings.Contains(unfocused, "48;") {
+		t.Errorf("unfocused selection should have the SelectedInactive background: %q", unfocused)
+	}
+	if !strings.HasPrefix(unfocused, th.Muted.Render("▌")) {
+		t.Errorf("unfocused marker should be Muted: %q", unfocused)
+	}
+
+	withProfile(t, theme.Color16.Profile())
+	plain := theme.Get(theme.Default, theme.Env{Depth: theme.Color16})
+	if row := Row(plain, theme.Plain("Codex"), nil, 20, true, false); strings.Contains(row, "\x1b[7m") || strings.Contains(row, ";7m") {
+		t.Errorf("16 colors marks an unfocused selection with the marker only: %q", row)
+	}
+}

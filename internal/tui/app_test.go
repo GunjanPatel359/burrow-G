@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -660,5 +661,106 @@ func TestHintsComeFromBindings(t *testing.T) {
 	}
 	if strings.Count(help, "q quit") != 1 {
 		t.Errorf("help should list each key once:\n%s", help)
+	}
+}
+
+func TestNarrowWindowShowsOnePane(t *testing.T) {
+	m, _ := testModel(t)
+	m = deliver(m, m.Init())
+	m = pressAll(m, tea.WindowSizeMsg{Width: 50, Height: 20})
+
+	v := m.View()
+	if !strings.Contains(v, "Agents") || strings.Contains(v, "From files") || strings.Contains(v, "│") {
+		t.Errorf("narrow window should show only the agents pane:\n%s", v)
+	}
+	m = pressAll(m, tea.KeyMsg{Type: tea.KeyRight})
+	v = m.View()
+	if strings.Contains(v, "Agents") || !strings.Contains(v, "From files") {
+		t.Errorf("→ should switch to the sessions pane:\n%s", v)
+	}
+	if !strings.Contains(m.status.View(), "← agents") {
+		t.Errorf("session hints should offer the way back: %q", m.status.View())
+	}
+	if lines(v) != m.height {
+		t.Errorf("view is %d lines, want %d", lines(v), m.height)
+	}
+}
+
+func TestShortWindowHidesDetails(t *testing.T) {
+	m, _ := testModel(t)
+	m = deliver(m, m.Init())
+	m = pressAll(m, tea.WindowSizeMsg{Width: 80, Height: 20})
+	if !strings.Contains(m.View(), "resume") {
+		t.Fatalf("details should show in a tall window:\n%s", m.View())
+	}
+	m = pressAll(m, tea.WindowSizeMsg{Width: 80, Height: 11})
+	v := m.View()
+	if strings.Contains(v, "folder") || !strings.Contains(v, "From files") {
+		t.Errorf("short window should hide details but keep the list:\n%s", v)
+	}
+	if lines(v) != m.height {
+		t.Errorf("view is %d lines, want %d", lines(v), m.height)
+	}
+}
+
+func TestTooSmallWindow(t *testing.T) {
+	m, _ := testModel(t)
+	m = pressAll(m, tea.WindowSizeMsg{Width: 39, Height: 20})
+	v := m.View()
+	if !strings.Contains(v, "make the window bigger") || !strings.Contains(v, "needs 40×8") || strings.Contains(v, "Agents") {
+		t.Errorf("tiny window should show only the note:\n%s", v)
+	}
+	if _, cmd := press(m, keyQ); !quits(cmd) {
+		t.Error("q should still quit")
+	}
+	m = pressAll(m, tea.WindowSizeMsg{Width: 40, Height: 8})
+	if strings.Contains(m.View(), "make the window bigger") {
+		t.Errorf("40×8 is big enough:\n%s", m.View())
+	}
+}
+
+func TestEmptyStates(t *testing.T) {
+	_, store := testModel(t)
+	m := newModel(store, []session.Source{fakeSource{name: "codex"}}, "/home/u", nil, theme.Env{}, alwaysDark)
+	m = deliver(m, m.Init())
+	if v := m.View(); !strings.Contains(v, "no sessions yet") || !strings.Contains(v, "start one in Codex and press r") {
+		t.Errorf("an agent with no sessions should say how to get one:\n%s", v)
+	}
+
+	m = newModel(store, nil, "/home/u", nil, theme.Env{}, alwaysDark)
+	if v := m.View(); !strings.Contains(v, "no agents found") || !strings.Contains(v, "burrow-g reads ~/.claude") {
+		t.Errorf("no agents should say where burrow-g looks:\n%s", v)
+	}
+}
+
+func TestBusyStatusSpins(t *testing.T) {
+	m, _ := testModel(t)
+	var tick tea.Msg
+	for _, msg := range run(m.Init()) {
+		if _, ok := msg.(spinner.TickMsg); ok {
+			tick = msg
+		}
+	}
+	if tick == nil {
+		t.Fatal("Init should start the spinner of the first refresh")
+	}
+	before := m.status.View()
+	next, cmd := m.Update(tick)
+	if cmd == nil || next.(model).status.View() == before {
+		t.Errorf("a tick should move the spinner: %q", before)
+	}
+}
+
+func TestThemeWithoutColorsSaysWhy(t *testing.T) {
+	for _, d := range []theme.Depth{theme.Color16, theme.NoColor} {
+		_, store := testModel(t)
+		m := newModel(store, nil, "/home/u", nil, theme.Env{Depth: d}, alwaysDark)
+		m = pressAll(typeText(pressAll(m, ctrlK), "theme nord"), enter)
+		if v := m.status.View(); !strings.Contains(v, `theme "nord" (colors need truecolor or 256)`) {
+			t.Errorf("depth %v: status = %q", d, v)
+		}
+		if got, _ := store.Setting("theme"); got != "nord" {
+			t.Errorf("depth %v: the choice should still be saved, got %q", d, got)
+		}
 	}
 }

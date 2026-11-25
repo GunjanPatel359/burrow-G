@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 
@@ -91,7 +92,7 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 	if len(sources) > 0 {
 		m.agent = sources[0]
 		m.loadSessions()
-		m.status.Busy("refreshing" + m.theme.Glyph.Ellipsis)
+		m.status.Busy("refreshing" + m.theme.Glyph.Ellipsis) // Init starts its spinner
 	}
 	m.setFocus(agentPane)
 	m.resize()
@@ -119,7 +120,7 @@ func (m model) Init() tea.Cmd {
 	if m.agent == nil {
 		return nil
 	}
-	return refresh(m.store, m.agent)
+	return tea.Batch(refresh(m.store, m.agent), m.status.Tick())
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -133,6 +134,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
+	case spinner.TickMsg:
+		var cmd tea.Cmd
+		m.status, cmd = m.status.Update(msg)
+		return m, cmd
+
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		m.resize()
@@ -216,8 +222,8 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case m.focus == sessionPane && key.Matches(msg, keys.Enter) && m.terminal != nil:
 			if s, ok := m.sessions.Selected(); ok {
-				m.status.Busy("opening" + m.theme.Glyph.Ellipsis)
-				return m, openTab(m.terminal, s, m.agent.ResumeCommand(s))
+				busy := m.status.Busy("opening" + m.theme.Glyph.Ellipsis)
+				return m, tea.Batch(busy, openTab(m.terminal, s, m.agent.ResumeCommand(s)))
 			}
 			return m, nil
 		case m.focus == sessionPane && (key.Matches(msg, keys.Enter) || key.Matches(msg, keys.Here)):
@@ -256,14 +262,14 @@ func (m *model) apply(e event.Event) tea.Cmd {
 		m.setTheme(theme.Get(e.Name, m.env))
 		if !e.Preview {
 			m.saved = e.Name
-			m.status.OK(fmt.Sprintf("theme %q", e.Name))
+			m.status.OK(themeSaved(e.Name, m.env))
 		}
 	case event.Refresh:
 		if m.agent == nil {
 			return nil
 		}
-		m.status.Busy("refreshing" + m.theme.Glyph.Ellipsis)
-		return refresh(m.store, m.agent)
+		busy := m.status.Busy("refreshing" + m.theme.Glyph.Ellipsis)
+		return tea.Batch(busy, refresh(m.store, m.agent))
 	case event.ShowHelp:
 		m.help = strings.Split(strings.TrimSuffix(e.Text, "\n"), "\n")
 		m.helpTop = 0
@@ -309,8 +315,17 @@ func (m *model) selectAgent(name string) tea.Cmd {
 	}
 	m.sessions.ResetCursor()
 	m.loadSessions()
-	m.status.Busy("refreshing" + m.theme.Glyph.Ellipsis)
-	return refresh(m.store, m.agent)
+	busy := m.status.Busy("refreshing" + m.theme.Glyph.Ellipsis)
+	return tea.Batch(busy, refresh(m.store, m.agent))
+}
+
+// themeSaved reports a saved theme. Without truecolor or 256 colors every
+// theme looks the same, so it says why nothing changed.
+func themeSaved(name string, env theme.Env) string {
+	if !env.Depth.Paints() {
+		return fmt.Sprintf("theme %q (colors need truecolor or 256)", name)
+	}
+	return fmt.Sprintf("theme %q", name)
 }
 
 func (m *model) setFocus(p pane) {

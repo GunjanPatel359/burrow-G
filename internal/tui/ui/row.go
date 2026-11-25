@@ -11,15 +11,17 @@ import (
 )
 
 // Row draws one list row of the given width: left text, right text at the end,
-// and a marker plus highlight when selected. Each part is drawn on top of the
-// row's style, so the highlight also runs through colored parts like the star.
+// and a marker plus highlight when selected. active is whether the row's pane
+// has focus: the selection there is strong, elsewhere it is dimmed. Each part is
+// drawn on top of the row's style, so the highlight also runs through colored
+// parts like the star.
 func Row(t theme.Theme, left, right []theme.Part, width int, selected, active bool) string {
 	base, marker := t.Text, " "
-	if selected {
-		marker = t.Marker.Render(t.Glyph.Marker)
-	}
-	if selected && active {
-		base = t.Selected
+	switch {
+	case selected && active:
+		base, marker = t.Selected, t.Marker.Render(t.Glyph.Marker)
+	case selected:
+		base, marker = t.SelectedInactive.Inherit(t.Text), t.Muted.Render(t.Glyph.Marker)
 	}
 	return marker + line(base, left, right, width) + " "
 }
