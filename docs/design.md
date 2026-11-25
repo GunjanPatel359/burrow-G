@@ -142,6 +142,7 @@ Draw shared pieces with these, from `internal/tui/ui`. Each takes the `theme.The
 | `VRule(t, height)` | a `│` column, in Border. |
 | `KeyHints(t, bindings...)` | `↑/↓ move · enter resume`: keys in Accent, words in Muted, `Sep` between. Bindings that are off are left out. |
 | `HintText(g, binding)` | the same hint as plain text, for the help command's key list. |
+| `KeyName(g, help)` | a help key with arrows from the glyph set: `up/down` becomes `↑/↓`. |
 | `StatusDot(t, status)` | the dot (or spinner frame) and text, colored by `OK`, `Busy` or `Error`. |
 | `Dialog(t, title, body, keys, width)` | a rounded frame on Surface: title in Accent bold, body in Text (wrapped, never cut), key hints last. 24 to 50 cells wide. |
 | `Overlay(base, box, width, height)` | puts a box in the middle of a screen, keeping the rest visible. Never makes the screen bigger. |
