@@ -70,6 +70,7 @@ type model struct {
 	pickFor  session.Session // the session the picker hands off
 	sel      *shared
 	pending  *session.Session // waiting for targets before the picker opens
+	handing  bool             // a handoff prompt is being built
 
 	focus    pane
 	agent    session.Source
@@ -103,7 +104,7 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 		Selected: func() (session.Session, bool) {
 			return sel.s, sel.ok
 		},
-		Targets: func() []string { return sel.targets },
+		Targets: func() ([]string, bool) { return sel.targets, sel.loaded },
 	})
 	m := model{
 		store:    store,
@@ -220,6 +221,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case handoffReadyMsg:
+		m.handing = false
 		if msg.err != nil {
 			m.status.Error(msg.err)
 			return m, nil
@@ -237,7 +239,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if m.pending != nil {
 			s := *m.pending
 			m.pending = nil
-			m.openPicker(s)
+			if !m.bar.Opened() && m.help == nil { // the person moved on
+				m.openPicker(s)
+			}
 		}
 		return m, nil
 
@@ -404,6 +408,9 @@ func (m *model) openPicker(s session.Session) {
 
 // handoff builds the prompt in the background; handoffReadyMsg launches it.
 func (m *model) handoff(s session.Session, agent string, here bool) tea.Cmd {
+	if m.handing {
+		return nil // one at a time, or a double press opens two tabs
+	}
 	src, err := m.transcriber(s.Agent)
 	if err != nil {
 		m.status.Error(err)
@@ -414,6 +421,7 @@ func (m *model) handoff(s session.Session, agent string, here bool) tea.Cmd {
 		m.status.Error(err)
 		return nil
 	}
+	m.handing = true
 	busy := m.status.Busy("preparing handoff" + m.theme.Glyph.Ellipsis)
 	return tea.Batch(busy, prepareHandoff(src, dst, s, agent, here, m.lookPath))
 }

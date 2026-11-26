@@ -104,7 +104,7 @@ func TestTheme_UnknownName(t *testing.T) {
 func transferEnv(t *testing.T, sel *session.Session) command.Env {
 	env := testEnv(t)
 	// qoder takes no first prompt and codex is not on PATH, so only claude is a target.
-	env.Targets = func() []string { return []string{"claude"} }
+	env.Targets = func() ([]string, bool) { return []string{"claude"}, true }
 	env.Selected = func() (session.Session, bool) {
 		if sel == nil {
 			return session.Session{}, false
@@ -153,5 +153,15 @@ func TestHandoff_SuggestsInstalledTargets(t *testing.T) {
 	rows := suggestTarget(transferEnv(t, nil), "")
 	if len(rows) != 1 || rows[0].Text != "claude" {
 		t.Errorf("rows = %+v", rows)
+	}
+}
+
+func TestHandoff_AcceptsAnyAgentBeforeLookup(t *testing.T) {
+	s := session.Session{Agent: "codex", ID: "x1"}
+	env := transferEnv(t, &s)
+	env.Targets = func() ([]string, bool) { return nil, false }
+	ev, err := New(env).Run("handoff @agent:claude")
+	if err != nil || ev != (event.HandoffRequested{Session: s, Agent: "claude"}) {
+		t.Errorf("handoff before lookup = %#v, %v", ev, err)
 	}
 }

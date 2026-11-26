@@ -13,6 +13,7 @@ import (
 	"github.com/GunjanPatel359/burrow-G/internal/db"
 	"github.com/GunjanPatel359/burrow-G/internal/launch"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
+	"github.com/GunjanPatel359/burrow-G/internal/tui/components/agentpicker"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
 )
 
@@ -165,5 +166,34 @@ func TestHandoffKeyWaitsForTargets(t *testing.T) {
 	m = next.(model)
 	if !m.picker.Opened() || m.pending != nil {
 		t.Error("the picker should open when the targets arrive")
+	}
+}
+
+func TestHandoffIgnoresSecondRequestWhileBuilding(t *testing.T) {
+	m, _ := transferModel(t, nil, t.TempDir())
+	m = pressAll(m, tKey)
+	next, job := m.Update(agentpicker.PickedMsg{Agent: "codex", Here: true})
+	m = next.(model)
+	if !m.handing || job == nil {
+		t.Fatal("picking an agent should start building the handoff")
+	}
+	if again := m.handoff(m.pickFor, "claude", true); again != nil {
+		t.Error("a second handoff started while one was in flight")
+	}
+	m = deliver(m, job)
+	if m.handing || m.chosen == nil || m.chosen.Argv[0] != "codex" {
+		t.Errorf("handing = %v, chosen = %+v after the job", m.handing, m.chosen)
+	}
+}
+
+func TestPendingPickerDroppedWhenBarOpens(t *testing.T) {
+	m, _ := transferModel(t, nil, t.TempDir())
+	m.sel.targets, m.sel.loaded = nil, false
+	m = pressAll(m, tKey)
+	m = pressAll(m, ctrlK)
+	next, _ := m.Update(targetsMsg{names: []string{"claude"}})
+	m = next.(model)
+	if m.picker.Opened() || m.pending != nil || !m.bar.Opened() {
+		t.Error("the picker should not open over the command bar")
 	}
 }

@@ -29,23 +29,29 @@ var Handoff = command.Command{
 	},
 }
 
-func targetNames(env command.Env) []string {
+func targetNames(env command.Env) ([]string, bool) {
 	if env.Targets == nil {
-		return nil
+		return nil, true
 	}
 	return env.Targets()
 }
 
 func suggestTarget(env command.Env, typed string) []command.Suggestion {
+	names, _ := targetNames(env)
 	var rows []command.Suggestion
-	for _, n := range targetNames(env) {
+	for _, n := range names {
 		rows = append(rows, command.Suggestion{Text: n})
 	}
 	return command.Match(rows, typed)
 }
 
+// checkTarget accepts any name before the lookup has answered; the handoff
+// itself checks PATH again, so nothing wrong can launch.
 func checkTarget(env command.Env, name string) error {
-	names := targetNames(env)
+	names, loaded := targetNames(env)
+	if !loaded {
+		return nil
+	}
 	for _, n := range names {
 		if n == name {
 			return nil

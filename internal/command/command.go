@@ -71,8 +71,9 @@ type Env struct {
 	Keys    []string // key help lines, for help
 	// Selected is the highlighted session, false when there is none.
 	Selected func() (session.Session, bool)
-	// Targets are the agents a session can be handed to; nil before they're known.
-	Targets func() []string
+	// Targets are the agents a session can be handed to, and whether they
+	// have been looked up yet.
+	Targets func() ([]string, bool)
 }
 
 // Service holds the commands and runs lines against them.
