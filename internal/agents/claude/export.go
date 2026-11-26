@@ -205,7 +205,7 @@ func (e *emitter) line(l exportLine) {
 	switch {
 	case l.IsCompactSummary:
 		e.flush()
-		e.write(portable.Record{Kind: "compaction", Time: l.Timestamp, Text: text(m.Content)})
+		e.write(portable.Record{Kind: "compaction", Time: l.Timestamp, Text: withoutInjected(text(m.Content), e.w)})
 
 	case l.IsMeta:
 		e.w.Drop("injected text")
@@ -369,6 +369,12 @@ func userText(s string, w *portable.Writer) string {
 		args := helpers.Between(s, "<command-args>", "</command-args>")
 		return strings.TrimSpace(name + " " + args)
 	}
+	return withoutInjected(s, w)
+}
+
+// withoutInjected removes the blocks the agent injected, counting each.
+// Compaction summaries carry them too.
+func withoutInjected(s string, w *portable.Writer) string {
 	for _, tag := range injectedTags {
 		open, close := "<"+tag+">", "</"+tag+">"
 		for {
