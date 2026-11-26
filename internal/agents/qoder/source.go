@@ -55,6 +55,26 @@ func (Source) Delete(s session.Session, trashDir string) error {
 	return errors.New("not implemented")
 }
 
-func (Source) Export(s session.Session, w *portable.Writer) error {
-	return session.ErrUnsupported
+// Export reads the session's JSONL file itself: Qoder has no export
+// command. The reader is in export.go.
+func (q Source) Export(s session.Session, w *portable.Writer) error {
+	path, err := q.sessionFile(s.ID)
+	if err != nil {
+		return err
+	}
+	title, cwd, err := parseFile(path)
+	if err != nil {
+		return err
+	}
+	live, meta, err := liveLines(path)
+	if err != nil {
+		return err
+	}
+	if err := w.Header(portable.Header{
+		Agent: "qoder", ID: s.ID, Title: title, Dir: cwd,
+		Created: meta.created, Updated: meta.updated,
+	}); err != nil {
+		return err
+	}
+	return writeRecords(path, live, w)
 }

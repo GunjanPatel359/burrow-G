@@ -146,6 +146,16 @@ Facts from real files (Claude Code 2.1.332), each covered by a fixture:
 
 A session that can't be found returns an error naming the id; the file is located the way `List` found it (`projects/*/<id>.jsonl`).
 
+### 5a. Qoder reader (step 3)
+
+Qoder's JSONL follows Claude Code's format, so `qoder/export.go` follows section 5 with these differences, seen in all 7 local sessions (Qoder CLI, 2026-11):
+
+1. The leaf is in `active-leaf` lines (`leafUuid`, the last one is current); `last-prompt` is read too.
+2. `active-leaf` and `runtime-config` lines write `timestamp` as milliseconds; every other line as RFC 3339 text. Both are read, so no line is skipped for its timestamp.
+3. A compaction marks two lines with `isCompactSummary`: the `system` boundary (no message, counted as bookkeeping) and the `user` summary, whose content is a list of text blocks.
+4. `logicalParentUuid` on a boundary points back to the older segment. The reader doesn't use it either way (section 5, rule 3).
+5. Thinking blocks keep their text, so Qoder exports carry `reasoning` parts.
+
 ### 6. OpenCode native route (step 2)
 
 - `opencode.Source` gains a `Run func(name string, args ...string) ([]byte, error)` field; `main.go` sets it to an `exec` wrapper. Tests set it to return a saved export file from `testdata/`. Nil `Run` means `ErrUnsupported`, so a reader built without it still compiles and lists.
