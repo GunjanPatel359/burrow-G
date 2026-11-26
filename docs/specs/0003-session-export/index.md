@@ -125,6 +125,7 @@ Rule: inside each agent's `Export` method, use the agent's own export when it gi
 | Qoder | own reader (JSONL close to Claude's) | step 3 |
 | Codex | own reader of rollout files | step 3 |
 | Copilot CLI | own reader, until it ships a structured export | step 3 |
+| Freebuff / Codebuff | own reader of `chat-messages.json` plus the summary in `run-state.json` (its `/export` is model written Markdown) | [spec 0005](../0005-freebuff-codebuff-sessions/index.md), section 8 |
 
 When an agent later ships a structured export, its package switches to it; nothing outside the package changes.
 

@@ -105,6 +105,7 @@ StartCommand(prompt string) []string
 | OpenCode | `opencode --prompt <prompt>` |
 | Copilot CLI | `copilot -i <prompt>` |
 | Codex | `codex <prompt>` |
+| Freebuff / Codebuff | `codebuff <prompt>`: Freebuff takes no prompt, so the row needs `codebuff` ([spec 0005](../0005-freebuff-codebuff-sessions/index.md), section 7) |
 
 The prompt is short and the same for every agent:
 
