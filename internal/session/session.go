@@ -36,6 +36,8 @@ type Source interface {
 	Name() string
 	List() ([]Session, error)
 	ResumeCommand(s Session) []string
+	// StartCommand starts a new session with prompt as its first message.
+	StartCommand(prompt string) []string
 	Delete(s Session, trashDir string) error
 	// Export streams s in the portable format, oldest record first. It uses
 	// the agent's own export when that gives structured data, else reads

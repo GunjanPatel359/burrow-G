@@ -4,7 +4,13 @@
 
 ### Added
 
-- Export a session: press `e` on it. The whole conversation, every tool call with its output,
+- Continue a session in another agent: `e` on a session opens a dialog with **Save to file**
+  and **Continue in** every agent installed on your `PATH`. Continuing writes a short handoff
+  file (the latest summary and the recent conversation) and starts that agent in the session's
+  folder, in a new tab or here, reading it. No agent's files are written (spec 0004).
+- Done messages in the status line clear themselves after 2 s, and the key hints stay at the
+  right edge.
+- Export a session: press `e` on it, then Save to file. The whole conversation, every tool call with its output,
   and the compaction summaries go to `~/.local/share/burrow-g/exports/<agent>-<id>.jsonl`, in
   one format for all five agents (`burrow-session/1`, spec 0003). The file is readable only by
   you. OpenCode sessions go through OpenCode's own `session export`; the other agents' files

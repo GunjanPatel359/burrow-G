@@ -77,6 +77,9 @@ func (m model) View() string {
 	}
 	rows := strings.Split(body, "\n")
 	rows = rows[:min(len(rows), h)]
+	if m.picker.Opened() {
+		rows = strings.Split(ui.Overlay(strings.Join(rows, "\n"), m.picker.View(m.width), m.width, len(rows)), "\n")
+	}
 
 	bottom := m.status.View()
 	if m.bar.Opened() {

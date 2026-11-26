@@ -66,6 +66,10 @@ func (Source) ResumeCommand(s session.Session) []string {
 	return []string{"codex", "resume", s.ID}
 }
 
+func (Source) StartCommand(prompt string) []string {
+	return []string{"codex", prompt}
+}
+
 func (Source) Delete(s session.Session, trashDir string) error {
 	return errors.New("delete not supported for codex yet")
 }

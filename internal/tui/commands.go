@@ -10,9 +10,11 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/GunjanPatel359/burrow-G/internal/db"
+	"github.com/GunjanPatel359/burrow-G/internal/handoff"
 	"github.com/GunjanPatel359/burrow-G/internal/launch"
 	"github.com/GunjanPatel359/burrow-G/internal/portable"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
+	"github.com/GunjanPatel359/burrow-G/internal/tui/components/agentlist"
 )
 
 // Background jobs. Only these touch the database or the agents' files.
@@ -104,4 +106,71 @@ func writePrivate(path string, write func(io.Writer) error) error {
 		return err
 	}
 	return os.Rename(tmp.Name(), path)
+}
+
+// findAgents looks up which agents can be started: the first word of each
+// one's StartCommand on PATH.
+func findAgents(sources []session.Source, lookPath func(string) (string, error)) tea.Cmd {
+	return func() tea.Msg {
+		var names []string
+		for _, src := range sources {
+			if _, err := lookPath(src.StartCommand("")[0]); err == nil {
+				names = append(names, src.Name())
+			}
+		}
+		return agentsFoundMsg{names: names}
+	}
+}
+
+// prepareHandoff prepares continuing s in target: the folder is checked
+// first, so nothing is written for a session that can't be continued; then
+// the export and the handoff file (spec 0004, section 2).
+func prepareHandoff(src, target session.Source, s session.Session, exports, handoffs, version string, here bool) tea.Cmd {
+	return func() tea.Msg {
+		fail := func(err error) tea.Msg { return handedOffMsg{s: s, target: target.Name(), err: err} }
+		if err := session.CheckDir(s); err != nil {
+			return fail(err)
+		}
+		export, err := fileFor(exports, s, ".jsonl")
+		if err != nil {
+			return fail(err)
+		}
+		if _, err := exportSession(src, s, export, version); err != nil {
+			return fail(err)
+		}
+		path, err := fileFor(handoffs, s, ".md")
+		if err != nil {
+			return fail(err)
+		}
+		agent := agentlist.DisplayName(s.Agent)
+		if err := writeHandoff(export, path, agent); err != nil {
+			return fail(err)
+		}
+		argv := target.StartCommand(handoff.Prompt(path, agent, s.Title))
+		return handedOffMsg{s: s, target: target.Name(), argv: argv, here: here}
+	}
+}
+
+// writeHandoff renders the export at from into path, through writePrivate
+// like an export.
+func writeHandoff(from, path, agent string) error {
+	in, err := os.Open(from)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	r, err := portable.NewReader(in)
+	if err != nil {
+		return err
+	}
+	return writePrivate(path, func(out io.Writer) error {
+		return handoff.Render(r, handoff.Options{Agent: agent, Record: from}, out)
+	})
+}
+
+// continueInTab starts the target agent in a new terminal tab.
+func continueInTab(term launch.Terminal, s session.Session, target string, argv []string) tea.Cmd {
+	return func() tea.Msg {
+		return continuedMsg{title: s.Title, target: target, err: term.OpenTab(s.Dir, s.Title, argv)}
+	}
 }

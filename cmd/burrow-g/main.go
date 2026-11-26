@@ -91,19 +91,15 @@ func main() {
 		if sudoUser != "" {
 			term = nil // a root terminal can't open tabs in the user's desktop
 		}
-		chosen, err := tui.Run(store, sources, home, term, version)
+		l, err := tui.Run(store, sources, home, term, version)
 		if err != nil {
 			fail(err)
 		}
-		if chosen == nil {
+		if l == nil {
 			return
 		}
-		src, err := findSource(sources, chosen.Agent)
-		if err != nil {
-			fail(err)
-		}
 		store.Close()
-		fail(sudoHint(session.Resume(*chosen, src.ResumeCommand(*chosen)), sudoUser))
+		fail(sudoHint(session.Resume(session.Session{Dir: l.Dir, Title: l.Title}, l.Argv), sudoUser))
 	}
 }
 

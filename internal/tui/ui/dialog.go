@@ -14,37 +14,65 @@ import (
 // is the width of the area it is shown over. The box is 24 to 50 cells wide and
 // never cuts its body; long lines wrap.
 func Dialog(t theme.Theme, title string, body []string, keys []key.Binding, bodyWidth int) string {
-	width := max(24, min(50, bodyWidth-4))
-	inner := width - 4 // two frame cells, one padding cell each side
-	fill := t.Surface
-	frame := t.Border.Inherit(fill)
-	side := frame.Render(t.Glyph.VLine)
-
-	var rows []string
-	row := func(styled string) {
-		pad := strings.Repeat(" ", max(inner-ansi.StringWidth(styled), 0)+1)
-		rows = append(rows, side+fill.Render(" ")+styled+fill.Render(pad)+side)
-	}
-	// Wrap the plain text first, so a color never spans a line break.
-	text := func(style lipgloss.Style, s string) {
-		for l := range strings.SplitSeq(ansi.Wrap(s, inner, ""), "\n") {
-			row(style.Render(l))
+	return frame(t, title, keys, bodyWidth, func(b *box) {
+		for _, line := range body {
+			b.text(t.Text, line)
 		}
-	}
+	})
+}
 
-	text(t.Header.Inherit(fill), title)
-	row("")
-	for _, b := range body {
-		text(t.Text.Inherit(fill), b)
+// Choice is a Dialog that offers choices: lead lines, then one row per
+// choice, the selected one marked and highlighted like a list row.
+func Choice(t theme.Theme, title string, lead, choices []string, selected int, keys []key.Binding, bodyWidth int) string {
+	return frame(t, title, keys, bodyWidth, func(b *box) {
+		for _, line := range lead {
+			b.text(t.Text, line)
+		}
+		if len(lead) > 0 {
+			b.row("")
+		}
+		for i, c := range choices {
+			b.row(SurfaceRow(t, []theme.Part{{Text: c}}, nil, b.inner, i == selected))
+		}
+	})
+}
+
+// box collects a dialog's rows between its side rules.
+type box struct {
+	t     theme.Theme
+	inner int // cells between the padding
+	rows  []string
+}
+
+func (b *box) row(styled string) {
+	fill, side := b.t.Surface, b.t.Border.Inherit(b.t.Surface).Render(b.t.Glyph.VLine)
+	pad := strings.Repeat(" ", max(b.inner-ansi.StringWidth(styled), 0)+1)
+	b.rows = append(b.rows, side+fill.Render(" ")+styled+fill.Render(pad)+side)
+}
+
+// text wraps plain text first, so a color never spans a line break.
+func (b *box) text(style lipgloss.Style, s string) {
+	for l := range strings.SplitSeq(ansi.Wrap(s, b.inner, ""), "\n") {
+		b.row(style.Inherit(b.t.Surface).Render(l))
 	}
-	row("")
-	for _, line := range hintLines(t.Glyph, keys, inner) {
-		row(keyHints(t, fill, line))
+}
+
+// frame draws the rounded box: title, the rows body adds, key hints.
+func frame(t theme.Theme, title string, keys []key.Binding, bodyWidth int, body func(*box)) string {
+	width := max(24, min(50, bodyWidth-4))
+	b := &box{t: t, inner: width - 4} // two frame cells, one padding cell each side
+	b.text(t.Header, title)
+	b.row("")
+	body(b)
+	b.row("")
+	for _, line := range hintLines(t.Glyph, keys, b.inner) {
+		b.row(keyHints(t, t.Surface, line))
 	}
 
 	c := t.Glyph.Corners
 	edge := strings.Repeat(t.Glyph.HLine, width-2)
-	return frame.Render(c[0]+edge+c[1]) + "\n" + strings.Join(rows, "\n") + "\n" + frame.Render(c[2]+edge+c[3])
+	border := t.Border.Inherit(t.Surface)
+	return border.Render(c[0]+edge+c[1]) + "\n" + strings.Join(b.rows, "\n") + "\n" + border.Render(c[2]+edge+c[3])
 }
 
 // hintLines splits bindings into lines no wider than width, whole hints only.

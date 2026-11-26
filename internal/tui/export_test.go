@@ -15,6 +15,7 @@ import (
 	"github.com/GunjanPatel359/burrow-G/internal/db"
 	"github.com/GunjanPatel359/burrow-G/internal/portable"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
+	"github.com/GunjanPatel359/burrow-G/internal/tui/components/picker"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
 )
 
@@ -38,6 +39,20 @@ func exportModel(t *testing.T, src fakeSource) model {
 	return m
 }
 
+// saveToFile opens the dialog and chooses Save to file; it returns the
+// command that runs the export.
+func saveToFile(m model) (model, tea.Cmd) {
+	m, _ = press(m, eKey)
+	m, cmd := press(m, enter)
+	for _, msg := range run(cmd) {
+		if c, ok := msg.(picker.ChoseMsg); ok {
+			next, more := m.Update(c)
+			return next.(model), more
+		}
+	}
+	return m, nil
+}
+
 func writesOne(s session.Session, w *portable.Writer) error {
 	if err := w.Header(portable.Header{Agent: s.Agent, ID: s.ID}); err != nil {
 		return err
@@ -48,7 +63,7 @@ func writesOne(s session.Session, w *portable.Writer) error {
 func TestExportKeyWritesFile(t *testing.T) {
 	m := exportModel(t, fakeSource{name: "claude", export: writesOne})
 
-	m, cmd := press(m, eKey)
+	m, cmd := saveToFile(m)
 	if !strings.Contains(m.status.View(), "exporting") {
 		t.Errorf("status while exporting = %q", m.status.View())
 	}
@@ -78,7 +93,7 @@ func TestExportKeyWritesFile(t *testing.T) {
 // A done message clears itself; tests make the wait 1 ms (TestMain).
 func TestExportedMessageFades(t *testing.T) {
 	m := exportModel(t, fakeSource{name: "claude", export: writesOne})
-	m, cmd := press(m, eKey)
+	m, cmd := saveToFile(m)
 
 	var fade tea.Cmd
 	for _, msg := range run(cmd) {
@@ -105,7 +120,7 @@ func TestExportKeyNarrowsExistingFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	m, cmd := press(m, eKey)
+	m, cmd := saveToFile(m)
 	m = deliver(m, cmd)
 
 	info, err := os.Stat(path)
@@ -120,7 +135,7 @@ func TestExportKeyNarrowsExistingFile(t *testing.T) {
 func TestExportKeyUnsupported(t *testing.T) {
 	m := exportModel(t, fakeSource{name: "claude"})
 
-	m, cmd := press(m, eKey)
+	m, cmd := saveToFile(m)
 	m = deliver(m, cmd)
 
 	if want := "error: export isn't supported for Claude Code yet"; !strings.Contains(m.status.View(), want) {
@@ -138,7 +153,7 @@ func TestExportKeyFailureRemovesFile(t *testing.T) {
 	}
 	m := exportModel(t, fakeSource{name: "claude", export: fails})
 
-	m, cmd := press(m, eKey)
+	m, cmd := saveToFile(m)
 	m = deliver(m, cmd)
 
 	if !strings.Contains(m.status.View(), "error: ") || !strings.Contains(m.status.View(), "disk full") {
@@ -153,7 +168,7 @@ func TestExportKeyTypedWhileSearching(t *testing.T) {
 	m := exportModel(t, fakeSource{name: "claude", export: writesOne})
 	m, _ = press(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("/")})
 
-	m, cmd := press(m, eKey)
+	m, cmd := saveToFile(m)
 	m = deliver(m, cmd)
 
 	if _, err := os.Stat(m.exports); !os.IsNotExist(err) {
@@ -178,11 +193,11 @@ func TestExportFailureKeepsEarlierExport(t *testing.T) {
 		return writesOne(s, w)
 	}}
 	m := exportModel(t, src)
-	m, cmd := press(m, eKey)
+	m, cmd := saveToFile(m)
 	m = deliver(m, cmd)
 
 	failing = true
-	m, cmd = press(m, eKey)
+	m, cmd = saveToFile(m)
 	m = deliver(m, cmd)
 
 	f, err := os.Open(filepath.Join(m.exports, "claude-aaa.jsonl"))

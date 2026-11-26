@@ -47,6 +47,8 @@ of them — in the right folder, with the right command.
 - **Search** — `/` filters by title or folder.
 - **Resume anywhere** — `enter` opens the session in a **new terminal tab** and keeps burrow-G
   open; `o` resumes it right here. It always starts in the session's original folder.
+- **Continue elsewhere** — `e` saves a session to a file, or continues it in any other agent you
+  have installed, starting from its latest summary and recent conversation.
 - **Safe** — agents' files are only ever read, never changed.
 
 ## Supported agents
@@ -104,7 +106,7 @@ burrow-g help            show help
 | `enter` / `→` / `tab` | go to its sessions | open in a new tab (or here, see below) |
 | `o` | — | resume in this terminal |
 | `b` | — | bookmark (★) — bookmarked sessions stay at the top |
-| `e` | — | export the session to a file (see below) |
+| `e` | — | save the session to a file, or continue it in another agent (see below) |
 | `/` | — | search title or folder |
 | `ctrl+k` | commands | commands |
 | `←` / `esc` | — | back to agents |
@@ -114,21 +116,29 @@ burrow-g help            show help
 **New tabs** currently work in **GNOME Terminal**. In other terminals (and IDE terminals
 such as GoLand's), `enter` resumes in the current terminal instead.
 
-### Export a session
+### Save or continue a session elsewhere
 
-Press `e` on a session to save it to
-`~/.local/share/burrow-g/exports/<agent>-<id>.jsonl`. The file holds the whole
-conversation in one format for every agent (`burrow-session/1`, see
-[spec 0003](docs/specs/0003-session-export/index.md)): your prompts, the agent's replies, every
-tool call with its full output, and the compaction summaries. Agent bookkeeping and encrypted
-thinking are left out, and the file's last line counts what was left out.
+Press `e` on a session. A dialog asks where it goes:
 
-**An export can contain code, file contents and secrets** from the session, exactly as they
-appeared. It is written readable only by you (mode 600, folder 700) and never leaves your
-machine. Think before you share it.
+- **Save to file** writes it to `~/.local/share/burrow-g/exports/<agent>-<id>.jsonl`: the whole
+  conversation in one format for every agent (`burrow-session/1`, see
+  [spec 0003](docs/specs/0003-session-export/index.md)), your prompts, the agent's replies, every
+  tool call with its full output, and the compaction summaries.
+- **Continue in <agent>** lists every agent whose CLI is on your `PATH`, the session's own agent
+  included. burrow-G saves the session as above, writes a short handoff file to
+  `~/.local/share/burrow-g/handoffs/<agent>-<id>.md` (the latest summary and the recent
+  conversation, at most 100 KB), and starts that agent in the session's folder, in a new tab or
+  here (`o`), asking it to read the file and say where the work left off
+  ([spec 0004](docs/specs/0004-session-handoff/index.md)). The agent saves its new session itself;
+  burrow-G never writes into any agent's files.
 
-OpenCode sessions are exported with OpenCode's own `opencode session export`, so `opencode`
-must be on your `PATH`; the other agents' files are read directly, and only read.
+**These files can contain code, file contents and secrets** from the session, exactly as they
+appeared, and continuing sends them to the other agent's model as they are: nothing is masked.
+They are written readable only by you (mode 600, folders 700). The new agent may ask permission
+to read the handoff file, since it is outside the project folder.
+
+OpenCode sessions are saved with OpenCode's own `opencode session export`, so `opencode` must be
+on your `PATH`; the other agents' files are read directly, and only read.
 
 ### Commands
 
@@ -186,7 +196,8 @@ there, and resumes in the same terminal instead of opening a new tab.
   reading its files.
 - Resuming changes into the session's folder and replaces burrow-G with the agent's own
   command, so when you quit the agent you are back at your normal prompt.
-- Nothing leaves your machine.
+- Nothing leaves your machine unless you choose **Continue in** an agent: then the handoff file
+  and the export it points at go to that agent, and through it to its model, as they are.
 
 ## Development
 

@@ -78,3 +78,10 @@ func TestDelete_NotSupported(t *testing.T) {
 		t.Error("want an error: delete is not supported for copilot yet")
 	}
 }
+
+// The command each CLI's --help documents for a first prompt (spec 0004).
+func TestStartCommand(t *testing.T) {
+	if got, want := (Source{}).StartCommand("hi"), []string{"copilot", "-i", "hi"}; !slices.Equal(got, want) {
+		t.Errorf("StartCommand() = %q, want %q", got, want)
+	}
+}

@@ -51,6 +51,10 @@ func (Source) ResumeCommand(s session.Session) []string {
 	return []string{"qodercli", "--resume", s.ID}
 }
 
+func (Source) StartCommand(prompt string) []string {
+	return []string{"qodercli", "-i", prompt}
+}
+
 func (Source) Delete(s session.Session, trashDir string) error {
 	return errors.New("not implemented")
 }

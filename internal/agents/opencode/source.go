@@ -75,6 +75,10 @@ func (Source) ResumeCommand(s session.Session) []string {
 	return []string{"opencode", "--session", s.ID}
 }
 
+func (Source) StartCommand(prompt string) []string {
+	return []string{"opencode", "--prompt", prompt}
+}
+
 func (Source) Delete(s session.Session, trashDir string) error {
 	return errors.New("not implemented")
 }
