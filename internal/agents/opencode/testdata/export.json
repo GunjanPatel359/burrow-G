@@ -1,0 +1,17 @@
+{"info":{"id":"ses_test","projectID":"global","title":"Fix the bug","location":{"directory":"/tmp/p"},"time":{"created":1793000000000,"updated":1793000060000},"cost":0,"tokens":{"input":0,"output":0,"reasoning":0,"cache":{"read":0,"write":0}}},
+"messages":[
+{"id":"msg_1","type":"user","time":{"created":1793000001000},"text":"fix the bug [Image 1]","agents":[],"files":[{"data":"iVBO","mime":"image/png","name":"s.png","source":{"type":"inline"}},{"data":"eA==","mime":"text/plain","name":"a.txt","source":{"type":"inline"}}]},
+{"id":"msg_2","type":"assistant","time":{"created":1793000002000,"completed":1793000003000},"agent":"build","model":{"id":"big-pickle","providerID":"opencode","variant":"default"},"content":[
+ {"type":"reasoning","text":"think","time":{"created":1793000002000}},
+ {"type":"text","text":"on it"},
+ {"type":"tool","id":"t1","name":"shell","state":{"status":"completed","input":{"command":"ls"},"content":[{"type":"text","text":"a\n"},{"type":"text","text":"b\n"}],"metadata":{"exit":0}},"time":{"created":1793000002500}},
+ {"type":"tool","id":"t2","name":"edit","state":{"status":"error","input":{"path":"x.go"},"error":{"type":"tool.execution","message":"no match"}}},
+ {"type":"tool","id":"t3","name":"read","state":{"status":"running","input":{"path":"y.go"}}}
+],"finish":"stop","cost":0},
+{"id":"msg_3","type":"synthetic","time":{"created":1793000004000},"text":"Continue if you have next steps."},
+{"id":"msg_4","type":"compaction","time":{"created":1793000005000},"status":"completed","reason":"auto","summary":"Sum"},
+{"id":"msg_5","type":"idle","time":{"created":1793000006000},"outcome":"succeeded"},
+{"id":"msg_6","type":"model-switched","time":{"created":1793000007000},"model":{"id":"m2"},"previous":{"id":"big-pickle"}},
+{"id":"msg_7","type":"system","time":{"created":1793000008000},"text":"The available tools have changed."},
+{"id":"msg_8","type":"assistant","time":{"created":1793000009000},"model":{"id":"big-pickle","providerID":"opencode"},"content":[{"type":"text","text":"done"}],"finish":"stop"}
+]}
