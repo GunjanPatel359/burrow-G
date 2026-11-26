@@ -22,6 +22,11 @@ Usage:
   burrow-g                 open the terminal UI
   burrow-g list            print every session (refreshes all agents)
   burrow-g resume <id>     resume a session by id or id prefix
+  burrow-g export <id> [-o file]
+                           print a session as Markdown (or write it to file)
+  burrow-g handoff <id> <agent>
+                           continue a session in another agent (or the same),
+                           starting it here with the conversation as its first prompt
   burrow-g setup-sudo      let 'sudo burrow-g' work (once, asks for your password)
   burrow-g version         print the version
   burrow-g help            show this help
@@ -31,6 +36,7 @@ In the UI:
   →/tab    go to sessions    o        resume here
   ←/esc    back to agents    /        search
   b        bookmark (★)      r        refresh
+  e        export            t        hand off
   ctrl+k   commands          q        quit
 
 Data: ~/.local/share/burrow-g (agents' own files are only read, never changed)

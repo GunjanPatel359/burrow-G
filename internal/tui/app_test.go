@@ -16,6 +16,7 @@ import (
 	"github.com/GunjanPatel359/burrow-G/internal/launch"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/agentlist"
+	"github.com/GunjanPatel359/burrow-G/internal/tui/components/agentpicker"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/commandbar"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
 )
@@ -82,7 +83,8 @@ func deliver(m model, cmd tea.Cmd) model {
 	for _, msg := range run(cmd) {
 		switch msg.(type) {
 		case refreshedMsg, openedMsg, bookmarkedMsg, agentlist.SelectedMsg,
-			commandbar.RanMsg, commandbar.PreviewMsg, commandbar.ClosedMsg:
+			commandbar.RanMsg, commandbar.PreviewMsg, commandbar.ClosedMsg,
+			exportedMsg, handoffReadyMsg, agentpicker.PickedMsg, agentpicker.ClosedMsg:
 			next, more := m.Update(msg)
 			m = deliver(next.(model), more)
 		}
@@ -144,7 +146,7 @@ func TestEnterMovesFocusThenChooses(t *testing.T) {
 		t.Fatal("enter on agents should focus the sessions pane")
 	}
 	m, cmd := press(m, enter)
-	if m.chosen == nil || m.chosen.ID != "aaa" || !quits(cmd) {
+	if m.chosen == nil || m.chosen.Session.ID != "aaa" || !quits(cmd) {
 		t.Errorf("enter on a session should choose it and quit; chosen = %+v", m.chosen)
 	}
 }
@@ -227,7 +229,7 @@ func TestOResumesHere(t *testing.T) {
 
 	m, _ = press(m, enter)
 	m, cmd := press(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("o")})
-	if m.chosen == nil || m.chosen.ID != "aaa" || !quits(cmd) {
+	if m.chosen == nil || m.chosen.Session.ID != "aaa" || !quits(cmd) {
 		t.Errorf("o should resume here; chosen = %+v", m.chosen)
 	}
 }

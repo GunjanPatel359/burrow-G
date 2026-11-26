@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"os/user"
 	"path/filepath"
 	"time"
@@ -16,6 +17,7 @@ import (
 	"github.com/GunjanPatel359/burrow-G/internal/helpers"
 	"github.com/GunjanPatel359/burrow-G/internal/launch"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
+	"github.com/GunjanPatel359/burrow-G/internal/transcript"
 	"github.com/GunjanPatel359/burrow-G/internal/tui"
 )
 
@@ -41,6 +43,16 @@ func main() {
 	case "resume":
 		if len(os.Args) < 3 {
 			fmt.Fprintln(os.Stderr, "usage: burrow-g resume <id>")
+			os.Exit(2)
+		}
+	case "export":
+		if _, _, err := parseExportArgs(os.Args[2:]); err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(2)
+		}
+	case "handoff":
+		if len(os.Args) != 4 {
+			fmt.Fprintln(os.Stderr, "usage: burrow-g handoff <id> <agent>")
 			os.Exit(2)
 		}
 	default:
@@ -86,6 +98,21 @@ func main() {
 		store.Close()
 		fail(sudoHint(session.Resume(s, src.ResumeCommand(s)), sudoUser))
 
+	case "export":
+		id, out, _ := parseExportArgs(os.Args[2:])
+		if err := runExport(store, sources, id, out, os.Stdout, os.Stderr, time.Now()); err != nil {
+			fail(err)
+		}
+
+	case "handoff":
+		s, argv, st, err := prepareHandoff(store, sources, os.Args[2], os.Args[3], exec.LookPath)
+		if err != nil {
+			fail(err)
+		}
+		store.Close()
+		fmt.Fprintln(os.Stderr, transcript.Report(os.Args[3], st))
+		fail(sudoHint(session.Resume(s, argv), sudoUser))
+
 	default:
 		term := launch.Detect(os.Getenv)
 		if sudoUser != "" {
@@ -98,12 +125,11 @@ func main() {
 		if chosen == nil {
 			return
 		}
-		src, err := findSource(sources, chosen.Agent)
-		if err != nil {
-			fail(err)
-		}
 		store.Close()
-		fail(sudoHint(session.Resume(*chosen, src.ResumeCommand(*chosen)), sudoUser))
+		if chosen.Report != "" {
+			fmt.Fprintln(os.Stderr, chosen.Report)
+		}
+		fail(sudoHint(session.Resume(chosen.Session, chosen.Argv), sudoUser))
 	}
 }
 

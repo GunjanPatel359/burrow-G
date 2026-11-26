@@ -1,22 +1,51 @@
 package tui
 
 import (
+	"time"
+
 	tea "github.com/charmbracelet/bubbletea"
 
 	"github.com/GunjanPatel359/burrow-G/internal/db"
 	"github.com/GunjanPatel359/burrow-G/internal/launch"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
+	"github.com/GunjanPatel359/burrow-G/internal/transcript"
 )
 
 // Background jobs. Only these touch the database or the agents' files.
 
 // openTab opens a session in a new terminal tab.
-func openTab(term launch.Terminal, s session.Session, argv []string) tea.Cmd {
+// report is shown on success instead of the default line; "" keeps the default.
+func openTab(term launch.Terminal, s session.Session, argv []string, report string) tea.Cmd {
 	return func() tea.Msg {
 		if err := session.CheckDir(s); err != nil {
 			return openedMsg{title: s.Title, err: err}
 		}
-		return openedMsg{title: s.Title, err: term.OpenTab(s.Dir, s.Title, argv)}
+		return openedMsg{title: s.Title, report: report, err: term.OpenTab(s.Dir, s.Title, argv)}
+	}
+}
+
+// exportSession reads a session's conversation and saves it as Markdown
+// in burrow-G's data folder.
+func exportSession(src session.Transcriber, s session.Session, home string) tea.Cmd {
+	return func() tea.Msg {
+		t, err := src.Transcript(s)
+		if err == nil {
+			err = transcript.CheckMessages(t)
+		}
+		if err != nil {
+			return exportedMsg{err: err}
+		}
+		md, st := transcript.Markdown(t, time.Now())
+		path, err := transcript.SaveExport(home, s, md)
+		return exportedMsg{path: path, stats: st, err: err}
+	}
+}
+
+// prepareHandoff builds the argv that starts agent with s's conversation.
+func prepareHandoff(src, dst session.Transcriber, s session.Session, agent string, here bool, lookPath func(string) (string, error)) tea.Cmd {
+	return func() tea.Msg {
+		argv, st, err := transcript.Handoff(src, dst, s, lookPath)
+		return handoffReadyMsg{s: s, agent: agent, argv: argv, stats: st, here: here, err: err}
 	}
 }
 

@@ -74,6 +74,9 @@ func (m model) View() string {
 	default:
 		body = lipgloss.JoinHorizontal(lipgloss.Top, m.leftView(), ui.VRule(t, h), m.rightView())
 	}
+	if m.picker.Opened() {
+		body = ui.Overlay(body, m.picker.View(m.width), m.width, h)
+	}
 	rows := strings.Split(body, "\n")
 	rows = rows[:min(len(rows), h)]
 

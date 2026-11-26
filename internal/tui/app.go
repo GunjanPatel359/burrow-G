@@ -4,6 +4,7 @@ package tui
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -15,9 +16,12 @@ import (
 	"github.com/GunjanPatel359/burrow-G/internal/command/commands"
 	"github.com/GunjanPatel359/burrow-G/internal/command/event"
 	"github.com/GunjanPatel359/burrow-G/internal/db"
+	"github.com/GunjanPatel359/burrow-G/internal/helpers"
 	"github.com/GunjanPatel359/burrow-G/internal/launch"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
+	"github.com/GunjanPatel359/burrow-G/internal/transcript"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/agentlist"
+	"github.com/GunjanPatel359/burrow-G/internal/tui/components/agentpicker"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/commandbar"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/details"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/sessionlist"
@@ -32,21 +36,40 @@ const (
 	sessionPane
 )
 
+// Launch is what to run in this terminal once the UI exits: a resume or a handoff.
+type Launch struct {
+	Session session.Session
+	Argv    []string
+	Report  string // printed before the terminal is taken over; "" for none
+}
+
+// selection is shared by every copy of the model, so the command bar sees
+// the session highlighted now, not when it was built.
+type selection struct {
+	s  session.Session
+	ok bool
+}
+
 type model struct {
-	store   *db.DB
-	sources []session.Source
-	theme   theme.Theme
-	env     theme.Env // what the terminal can draw; every theme.Get uses it
+	store    *db.DB
+	sources  []session.Source
+	home     string
+	lookPath func(string) (string, error)
+	theme    theme.Theme
+	env      theme.Env // what the terminal can draw; every theme.Get uses it
 
 	agents   agentlist.Model
 	sessions sessionlist.Model
 	details  details.Model
 	status   statusbar.Model
 	bar      commandbar.Model
+	picker   agentpicker.Model
+	pickFor  session.Session // the session the picker hands off
+	sel      *selection
 
 	focus    pane
 	agent    session.Source
-	chosen   *session.Session
+	chosen   *Launch
 	terminal launch.Terminal      // nil when new tabs aren't supported
 	paint    func(lipgloss.Color) // sets the terminal background; nil in tests
 
@@ -65,6 +88,7 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 		return theme.Initial(name, dark)
 	}
 	t := theme.Get(current(), env)
+	sel := &selection{}
 	svc := commands.New(command.Env{
 		Store:   store,
 		Themes:  theme.Names(),
@@ -72,10 +96,18 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 		Sources: sources,
 		Home:    home,
 		Keys:    keyLines(term != nil, t.Glyph),
+		Selected: func() (session.Session, bool) {
+			return sel.s, sel.ok
+		},
+		LookPath: exec.LookPath,
 	})
 	m := model{
 		store:    store,
 		sources:  sources,
+		home:     home,
+		lookPath: exec.LookPath,
+		sel:      sel,
+		picker:   agentpicker.New(t),
 		theme:    t,
 		env:      env,
 		saved:    t.Name,
@@ -99,8 +131,8 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 	return m
 }
 
-// Run shows the TUI and returns the session to resume, or nil.
-func Run(store *db.DB, sources []session.Source, home string, term launch.Terminal) (*session.Session, error) {
+// Run shows the TUI and returns what to run in this terminal, or nil.
+func Run(store *db.DB, sources []session.Source, home string, term launch.Terminal) (*Launch, error) {
 	env := theme.DetectEnv(lipgloss.DefaultRenderer().Output().EnvColorProfile(), os.Getenv)
 	lipgloss.SetColorProfile(env.Depth.Profile())
 	bg := newBackground()
@@ -126,6 +158,11 @@ func (m model) Init() tea.Cmd {
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyMsg); ok && k.String() == "ctrl+c" {
 		return m, tea.Quit
+	}
+	if k, ok := msg.(tea.KeyMsg); ok && m.picker.Opened() {
+		var cmd tea.Cmd
+		m.picker, cmd = m.picker.Update(k)
+		return m, cmd
 	}
 	if k, ok := msg.(tea.KeyMsg); ok && m.bar.Opened() {
 		var cmd tea.Cmd
@@ -157,11 +194,41 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case openedMsg:
+		switch {
+		case msg.err != nil:
+			m.status.Error(msg.err)
+		case msg.report != "":
+			m.status.OK(msg.report)
+		default:
+			m.status.OK(fmt.Sprintf("opened %q in a new tab", msg.title))
+		}
+		return m, nil
+
+	case exportedMsg:
 		if msg.err != nil {
 			m.status.Error(msg.err)
 		} else {
-			m.status.OK(fmt.Sprintf("opened %q in a new tab", msg.title))
+			m.status.OK(transcript.ExportReport(msg.stats) + " to " + helpers.ShortPath(msg.path, m.home))
 		}
+		return m, nil
+
+	case handoffReadyMsg:
+		if msg.err != nil {
+			m.status.Error(msg.err)
+			return m, nil
+		}
+		report := transcript.Report(msg.agent, msg.stats)
+		if msg.here || m.terminal == nil {
+			m.chosen = &Launch{Session: msg.s, Argv: msg.argv, Report: report}
+			return m, tea.Quit
+		}
+		busy := m.status.Busy("opening" + m.theme.Glyph.Ellipsis)
+		return m, tea.Batch(busy, openTab(m.terminal, msg.s, msg.argv, report))
+
+	case agentpicker.PickedMsg:
+		return m, m.handoff(m.pickFor, msg.Agent, msg.Here)
+
+	case agentpicker.ClosedMsg:
 		return m, nil
 
 	case bookmarkedMsg:
@@ -223,18 +290,28 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case m.focus == sessionPane && key.Matches(msg, keys.Enter) && m.terminal != nil:
 			if s, ok := m.sessions.Selected(); ok {
 				busy := m.status.Busy("opening" + m.theme.Glyph.Ellipsis)
-				return m, tea.Batch(busy, openTab(m.terminal, s, m.agent.ResumeCommand(s)))
+				return m, tea.Batch(busy, openTab(m.terminal, s, m.agent.ResumeCommand(s), ""))
 			}
 			return m, nil
 		case m.focus == sessionPane && (key.Matches(msg, keys.Enter) || key.Matches(msg, keys.Here)):
 			if s, ok := m.sessions.Selected(); ok {
-				m.chosen = &s
+				m.chosen = &Launch{Session: s, Argv: m.agent.ResumeCommand(s)}
 				return m, tea.Quit
 			}
 			return m, nil
 		case m.focus == sessionPane && key.Matches(msg, keys.Bookmark):
 			if s, ok := m.sessions.Selected(); ok {
 				return m, bookmark(m.store, s, !s.Bookmarked)
+			}
+			return m, nil
+		case m.focus == sessionPane && key.Matches(msg, keys.Export):
+			if s, ok := m.sessions.Selected(); ok {
+				return m, m.apply(event.ExportRequested{Session: s})
+			}
+			return m, nil
+		case m.focus == sessionPane && key.Matches(msg, keys.Handoff):
+			if s, ok := m.sessions.Selected(); ok {
+				return m, m.apply(event.HandoffRequested{Session: s})
 			}
 			return m, nil
 		case m.focus == sessionPane && key.Matches(msg, keys.Left) && !m.sessions.Filtered():
@@ -274,12 +351,63 @@ func (m *model) apply(e event.Event) tea.Cmd {
 		m.help = strings.Split(strings.TrimSuffix(e.Text, "\n"), "\n")
 		m.helpTop = 0
 		m.status.SetHelp(helpViewHints()...)
+	case event.ExportRequested:
+		src, err := m.transcriber(e.Session.Agent)
+		if err != nil {
+			m.status.Error(err)
+			return nil
+		}
+		busy := m.status.Busy("exporting" + m.theme.Glyph.Ellipsis)
+		return tea.Batch(busy, exportSession(src, e.Session, m.home))
+	case event.HandoffRequested:
+		if e.Agent != "" {
+			return m.handoff(e.Session, e.Agent, false)
+		}
+		var names []string
+		for _, src := range transcript.Targets(m.sources, m.lookPath) {
+			names = append(names, src.Name())
+		}
+		if len(names) == 0 {
+			m.status.Error(fmt.Errorf("no agent CLI found on PATH"))
+			return nil
+		}
+		m.pickFor = e.Session
+		m.picker.Open(e.Session.Title, names, m.terminal != nil)
 	case event.Quit:
 		return tea.Quit
 	default:
 		m.status.Error(fmt.Errorf("unknown event %T", e))
 	}
 	return nil
+}
+
+// handoff builds the prompt in the background; handoffReadyMsg launches it.
+func (m *model) handoff(s session.Session, agent string, here bool) tea.Cmd {
+	src, err := m.transcriber(s.Agent)
+	if err != nil {
+		m.status.Error(err)
+		return nil
+	}
+	dst, err := m.transcriber(agent)
+	if err != nil {
+		m.status.Error(err)
+		return nil
+	}
+	busy := m.status.Busy("preparing handoff" + m.theme.Glyph.Ellipsis)
+	return tea.Batch(busy, prepareHandoff(src, dst, s, agent, here, m.lookPath))
+}
+
+func (m *model) transcriber(agent string) (session.Transcriber, error) {
+	for _, src := range m.sources {
+		if src.Name() != agent {
+			continue
+		}
+		if tr, ok := src.(session.Transcriber); ok {
+			return tr, nil
+		}
+		return nil, fmt.Errorf("export and handoff not supported for %s", agent)
+	}
+	return nil, fmt.Errorf("unknown agent %q", agent)
 }
 
 // helpKey handles a key while help is shown; other keys are ignored.
@@ -305,6 +433,7 @@ func (m *model) setTheme(t theme.Theme) {
 	m.details.SetTheme(t)
 	m.status.SetTheme(t)
 	m.bar.SetTheme(t)
+	m.picker.SetTheme(t)
 }
 
 func (m *model) selectAgent(name string) tea.Cmd {
@@ -361,7 +490,9 @@ func (m *model) loadSessions() {
 }
 
 func (m *model) syncDetails() {
-	if s, ok := m.sessions.Selected(); ok {
+	s, ok := m.sessions.Selected()
+	m.sel.s, m.sel.ok = s, ok
+	if ok {
 		m.details.Show(s, m.agent.ResumeCommand(s))
 	} else {
 		m.details.Clear()

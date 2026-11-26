@@ -69,6 +69,10 @@ type Env struct {
 	Sources []session.Source
 	Home    string
 	Keys    []string // key help lines, for help
+	// Selected is the highlighted session, false when there is none.
+	Selected func() (session.Session, bool)
+	// LookPath finds an agent CLI on PATH; nil means exec.LookPath.
+	LookPath func(string) (string, error)
 }
 
 // Service holds the commands and runs lines against them.

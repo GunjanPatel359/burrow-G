@@ -8,6 +8,6 @@ import "github.com/GunjanPatel359/burrow-G/internal/command"
 func New(env command.Env) *command.Service {
 	var s *command.Service
 	help := Help(func() []command.Command { return s.Commands() })
-	s = command.NewService(env, Theme, Refresh, help, Quit)
+	s = command.NewService(env, Theme, Refresh, Export, Handoff, help, Quit)
 	return s
 }
