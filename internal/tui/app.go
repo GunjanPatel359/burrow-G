@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -23,6 +25,7 @@ import (
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/agentlist"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/commandbar"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/details"
+	"github.com/GunjanPatel359/burrow-G/internal/tui/components/picker"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/sessionlist"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/statusbar"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
@@ -46,6 +49,7 @@ type model struct {
 	details  details.Model
 	status   statusbar.Model
 	bar      commandbar.Model
+	picker   picker.Model
 
 	focus    pane
 	agent    session.Source
@@ -55,9 +59,14 @@ type model struct {
 
 	width, height int
 
-	home    string // for showing paths with ~
-	exports string // folder `e` writes exports to
-	version string // burrow-G version, stamped into exports
+	home     string // for showing paths with ~
+	exports  string // folder `e` writes exports to
+	handoffs string // folder handoff files go to
+	version  string // burrow-G version, stamped into exports
+
+	lookPath  func(string) (string, error) // exec.LookPath; tests fake it
+	installed []string                     // agents whose CLI is on PATH
+	moving    session.Session              // the session the picker is for
 
 	saved   string   // theme to go back to when a preview ends
 	help    []string // help text lines; nil when hidden
@@ -85,6 +94,8 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 		sources:  sources,
 		home:     home,
 		exports:  filepath.Join(helpers.DataDir(home), "exports"),
+		handoffs: filepath.Join(helpers.DataDir(home), "handoffs"),
+		lookPath: exec.LookPath,
 		theme:    t,
 		env:      env,
 		saved:    t.Name,
@@ -93,6 +104,7 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 		details:  details.New(t),
 		status:   statusbar.New(t),
 		bar:      commandbar.New(t, svc),
+		picker:   picker.New(t),
 		terminal: term,
 		width:    100,
 		height:   30,
@@ -136,15 +148,21 @@ func Run(store *db.DB, sources []session.Source, home string, term launch.Termin
 }
 
 func (m model) Init() tea.Cmd {
+	find := findAgents(m.sources, m.lookPath)
 	if m.agent == nil {
-		return nil
+		return find
 	}
-	return tea.Batch(refresh(m.store, m.agent), m.status.Tick())
+	return tea.Batch(refresh(m.store, m.agent), m.status.Tick(), find)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if k, ok := msg.(tea.KeyMsg); ok && k.String() == "ctrl+c" {
 		return m, tea.Quit
+	}
+	if k, ok := msg.(tea.KeyMsg); ok && m.picker.Opened() {
+		var cmd tea.Cmd
+		m.picker, cmd = m.picker.Update(k)
+		return m, cmd
 	}
 	if k, ok := msg.(tea.KeyMsg); ok && m.bar.Opened() {
 		var cmd tea.Cmd
@@ -181,6 +199,38 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 		return m, m.status.OK(fmt.Sprintf("opened %q in a new tab", msg.title))
+
+	case agentsFoundMsg:
+		m.installed = msg.names
+		return m, nil
+
+	case picker.ClosedMsg:
+		return m, nil
+
+	case picker.ChoseMsg:
+		return m, m.move(msg)
+
+	case handedOffMsg:
+		switch {
+		case errors.Is(msg.err, session.ErrUnsupported):
+			m.status.Error(fmt.Errorf("export isn't supported for %s yet", agentlist.DisplayName(msg.s.Agent)))
+		case msg.err != nil:
+			m.status.Error(msg.err)
+		case msg.here || m.terminal == nil:
+			m.status.Clear()
+			m.launch = &Launch{Dir: msg.s.Dir, Argv: msg.argv, Title: msg.s.Title}
+			return m, tea.Quit
+		default:
+			return m, continueInTab(m.terminal, msg.s, msg.target, msg.argv)
+		}
+		return m, nil
+
+	case continuedMsg:
+		if msg.err != nil {
+			m.status.Error(msg.err)
+			return m, nil
+		}
+		return m, m.status.OK(fmt.Sprintf("continued %q in %s", msg.title, agentlist.DisplayName(msg.target)))
 
 	case exportedMsg:
 		switch {
@@ -266,8 +316,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case m.focus == sessionPane && key.Matches(msg, keys.Export) && m.agent != nil:
 			if s, ok := m.sessions.Selected(); ok {
-				busy := m.status.Busy("exporting" + m.theme.Glyph.Ellipsis)
-				return m, tea.Batch(busy, export(m.agent, s, m.exports, m.version))
+				m.openPicker(s)
 			}
 			return m, nil
 		case m.focus == sessionPane && key.Matches(msg, keys.Left) && !m.sessions.Filtered():
@@ -302,7 +351,7 @@ func (m *model) apply(e event.Event) tea.Cmd {
 			return nil
 		}
 		busy := m.status.Busy("refreshing" + m.theme.Glyph.Ellipsis)
-		return tea.Batch(busy, refresh(m.store, m.agent))
+		return tea.Batch(busy, refresh(m.store, m.agent), findAgents(m.sources, m.lookPath))
 	case event.ShowHelp:
 		m.help = strings.Split(strings.TrimSuffix(e.Text, "\n"), "\n")
 		m.helpTop = 0
@@ -338,6 +387,7 @@ func (m *model) setTheme(t theme.Theme) {
 	m.details.SetTheme(t)
 	m.status.SetTheme(t)
 	m.bar.SetTheme(t)
+	m.picker.SetTheme(t)
 }
 
 func (m *model) selectAgent(name string) tea.Cmd {
@@ -399,4 +449,43 @@ func (m *model) syncDetails() {
 	} else {
 		m.details.Clear()
 	}
+}
+
+// openPicker asks where session s goes: a file, or any agent on PATH, in
+// the agents pane's order.
+func (m *model) openPicker(s session.Session) {
+	items := []picker.Item{{Label: "Save to file"}}
+	for _, src := range m.sources {
+		if slices.Contains(m.installed, src.Name()) {
+			items = append(items, picker.Item{Label: "Continue in " + agentlist.DisplayName(src.Name()), Agent: src.Name()})
+		}
+	}
+	m.moving = s
+	lead := fmt.Sprintf("%q %s %s", s.Title, m.theme.Glyph.Sep, agentlist.DisplayName(s.Agent))
+	m.picker.Open("Move session", lead, items, m.terminal != nil)
+}
+
+// move carries out the picker's choice for m.moving.
+func (m *model) move(c picker.ChoseMsg) tea.Cmd {
+	s := m.moving
+	if c.Item.Agent == "" {
+		busy := m.status.Busy("exporting" + m.theme.Glyph.Ellipsis)
+		return tea.Batch(busy, export(m.agent, s, m.exports, m.version))
+	}
+	target, err := findSourceIn(m.sources, c.Item.Agent)
+	if err != nil {
+		m.status.Error(err)
+		return nil
+	}
+	busy := m.status.Busy("preparing handoff" + m.theme.Glyph.Ellipsis)
+	return tea.Batch(busy, prepareHandoff(m.agent, target, s, m.exports, m.handoffs, m.version, c.Here))
+}
+
+func findSourceIn(sources []session.Source, name string) (session.Source, error) {
+	for _, src := range sources {
+		if src.Name() == name {
+			return src, nil
+		}
+	}
+	return nil, fmt.Errorf("unknown agent %q", name)
 }

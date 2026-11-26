@@ -13,7 +13,7 @@ The Bubble Tea app: an agents pane, a sessions pane with search, a details box, 
 | `messages.go` | messages the app sends itself (`refreshedMsg`, …) |
 | `keys.go`, `layout.go` | key bindings, sizing of panes |
 | `background.go` | sets the terminal background for the theme, restores it on exit |
-| `components/<name>/model.go` | agentlist, sessionlist, details, statusbar, commandbar; each its own model |
+| `components/<name>/model.go` | agentlist, sessionlist, details, statusbar, commandbar, picker (the `e` dialog); each its own model |
 | `theme/palettes.go`, `theme/theme.go` | 17 palettes; `theme.Get` turns one into styles |
 | `theme/env.go`, `theme/looks.go`, `theme/glyphs.go`, `theme/layout.go` | color depth and locale (`theme.Env`), the shared 16 color and no color looks, Unicode and ASCII glyph sets, layout sizes |
 | `ui/` | shared drawing pieces (`Row`, `PaneHeader`, `KeyHints`, `StatusDot`, `Dialog`, `EmptyState`, …), each drawn from a `theme.Theme` |
@@ -23,7 +23,7 @@ The Bubble Tea app: an agents pane, a sessions pane with search, a details box, 
 - Design system: draw everything to `docs/design.md` (tokens, glyphs, primitives, states, copy). Colors, symbols and sizes live only in `theme/`; outside it, code draws through `ui` and theme styles and never names a color or a literal glyph (review enforces this; the `rg` check is in `docs/design.md`).
 - Only the jobs in `commands.go` touch the database or agents' files, and they run as `tea.Cmd`, never inside `Update`. Each returns a message from `messages.go` carrying its error.
 - Components keep their own messages (e.g. `agentlist.SelectedMsg`) and own `Update`; the app forwards keys to the focused pane.
-- The open command bar takes every key first; `ctrl+c` always quits.
+- The open command bar, and the open `e` dialog (picker), take every key first; `ctrl+c` always quits.
 - Errors go to the status bar (`m.status.Error`), never panics or prints.
 - Tests drive the real model: `testModel`/`testModelWith` with a `fakeSource` and a temp database, then `press`, `pressAll`, `deliver` to feed keys and messages.
 - Adding a theme: a palette in `theme/palettes.go` filling all 14 slots (each a `Tone` with hex and 256 index) that passes `go test ./internal/tui/theme` (contrast included), then the README theme list.

@@ -11,7 +11,7 @@ Colors, symbols and sizes live in `internal/tui/theme`. The shared drawing piece
 | Package | Owns | May import |
 |---|---|---|
 | `internal/tui/theme` | palettes, color depth, glyph sets, layout sizes, `Theme` (ready styles) | lipgloss, termenv (never bubbles) |
-| `internal/tui/ui` | `Row`, `SurfaceRow`, `PaneHeader`, `Divider`, `VRule`, `KeyHints`, `StatusDot`, `StatusLine`, `Dialog`, `Overlay`, `EmptyState` | theme, lipgloss, `charmbracelet/x/ansi`, `bubbles/key` |
+| `internal/tui/ui` | `Row`, `SurfaceRow`, `PaneHeader`, `Divider`, `VRule`, `KeyHints`, `StatusDot`, `StatusLine`, `Dialog`, `Choice`, `Overlay`, `EmptyState` | theme, lipgloss, `charmbracelet/x/ansi`, `bubbles/key` |
 | `internal/tui/components/*`, `internal/tui/*.go` | screens and state | ui, theme (styles and tokens only) |
 
 So outside `theme/` you never write `lipgloss.Color(...)`, a hex string, an ANSI index, or a literal symbol from the glyph table below. `lipgloss.NewStyle()` is still fine for width and height. Tests may use literal colors and symbols in expected output.
@@ -145,6 +145,7 @@ Draw shared pieces with these, from `internal/tui/ui`. Each takes the `theme.The
 | `KeyName(g, help)` | a help key with arrows from the glyph set: `up/down` becomes `↑/↓`. |
 | `StatusDot(t, status)` | the dot (or spinner frame) and text, colored by `OK`, `Busy` or `Error`. |
 | `StatusLine(t, status, width, bindings...)` | the status line: the status on the left, the key hints flush against the right edge, so they stay put while the status comes and goes. Hints that don't fit are left out from the end; with none left, the status is cut. |
+| `Choice(t, title, lead, choices, selected, keys, width)` | a `Dialog` whose body is lead lines, then one `SurfaceRow` per choice, the selected one marked and highlighted. |
 | `Dialog(t, title, body, keys, width)` | a rounded frame on Surface: title in Accent bold, body in Text (wrapped, never cut), key hints last. 24 to 50 cells wide. |
 | `Overlay(base, box, width, height)` | puts a box in the middle of a screen, keeping the rest visible. Never makes the screen bigger. |
 | `EmptyState(t, message, hint, width, height)` | a message and a Muted hint, centered. Lines that don't fit are cut. |
@@ -159,7 +160,7 @@ right := []theme.Part{{Text: ago, Style: t.Muted}}
 fmt.Fprint(w, ui.Row(t, left, right, m.Width(), index == m.Index(), d.active))
 ```
 
-`Dialog` and `Overlay` have no user yet. Deleting a session will be the first: title `delete session`, body the quoted title and folder, keys `y delete · n cancel`.
+`e` uses `Choice` and `Overlay` for its dialog (`components/picker`): title `Move session`, the quoted title and agent as the lead, then `Save to file` and `Continue in <agent>` rows, keys `↑/↓ move · enter choose · o here · esc cancel`. While a dialog is open it takes every key, like the command bar; `ctrl+c` still quits.
 
 ## States
 

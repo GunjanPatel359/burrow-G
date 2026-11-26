@@ -19,6 +19,7 @@ import (
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/agentlist"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/commandbar"
+	"github.com/GunjanPatel359/burrow-G/internal/tui/components/picker"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
 )
 
@@ -90,14 +91,23 @@ func run(cmd tea.Cmd) []tea.Msg {
 // deliver feeds our app's own messages from cmd back into m, like Bubble Tea would.
 func deliver(m model, cmd tea.Cmd) model {
 	for _, msg := range run(cmd) {
-		switch msg.(type) {
-		case refreshedMsg, openedMsg, bookmarkedMsg, exportedMsg, agentlist.SelectedMsg,
-			commandbar.RanMsg, commandbar.PreviewMsg, commandbar.ClosedMsg:
+		if ours(msg) {
 			next, more := m.Update(msg)
 			m = deliver(next.(model), more)
 		}
 	}
 	return m
+}
+
+// ours is the app's own messages: not spinner or fade ticks, which tick on.
+func ours(msg tea.Msg) bool {
+	switch msg.(type) {
+	case refreshedMsg, openedMsg, bookmarkedMsg, exportedMsg, agentsFoundMsg, handedOffMsg, continuedMsg,
+		picker.ChoseMsg, picker.ClosedMsg, agentlist.SelectedMsg,
+		commandbar.RanMsg, commandbar.PreviewMsg, commandbar.ClosedMsg:
+		return true
+	}
+	return false
 }
 
 func press(m model, k tea.KeyMsg) (model, tea.Cmd) {

@@ -30,3 +30,25 @@ type exportedMsg struct {
 	path  string
 	err   error
 }
+
+// agentsFoundMsg arrives with the agents whose CLI is on PATH.
+type agentsFoundMsg struct {
+	names []string
+}
+
+// handedOffMsg arrives when a handoff file is ready and argv would start the
+// target agent with it; err when it couldn't be prepared.
+type handedOffMsg struct {
+	s      session.Session
+	target string
+	argv   []string
+	here   bool
+	err    error
+}
+
+// continuedMsg arrives when the target agent was started in a new tab.
+type continuedMsg struct {
+	title  string
+	target string
+	err    error
+}
