@@ -29,7 +29,7 @@ Render a bounded Markdown file from the portable export (latest summary plus rec
 
 **Pros**: OpenCode sessions keep the full history as a real OpenCode session.
 
-**Cons**: two behaviours to explain and test; tied to OpenCode's private import format (`projectID`, `cost`, `tokens`, globally unique ids, found by trial in the spike). Left for later (Follow-up): it fits inside OpenCode's `source.go` without changing anything here.
+**Cons**: two behaviours to explain and test; tied to OpenCode's private import format (`projectID`, `cost`, `tokens`, globally unique ids, found by trial in the spike). Not wanted (decided 2026-11-26): every agent continues the same way, through the handoff.
 
 ### Option 3: the transcript as the first prompt (PR #24)
 
@@ -45,6 +45,6 @@ Render a bounded Markdown file from the portable export (latest summary plus rec
 
 ## Rationale
 
-Option 1 keeps the rule that makes burrow-G safe to run and needs no new reader: it renders from the export spec 0003 already built. The budget answers the size force with the agent's own condensing (the compaction summary) instead of a blind cut, and the file answers the argument limit and the process list together. The user chose handoff only, with no native import for now (2026-11-26); Option 2 stays the natural next step.
+Option 1 keeps the rule that makes burrow-G safe to run and needs no new reader: it renders from the export spec 0003 already built. The budget answers the size force with the agent's own condensing (the compaction summary) instead of a blind cut, and the file answers the argument limit and the process list together. The user chose handoff only, with no native import for any agent (2026-11-26), so every agent behaves the same.
 
 The dialog on `e` replaces a separate handoff key: saving and continuing are the same question, "where does this session go?". The picker and the per agent start commands follow PR #24 by Prashant Dobariya, which designed and checked them first.

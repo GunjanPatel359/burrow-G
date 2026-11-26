@@ -6,7 +6,7 @@
 
 ## Summary
 
-`e` on a session opens a small dialog: **Save to file**, or **Continue in** any agent installed on this machine. Continuing writes a short handoff file from the session's export (the latest summary and the recent conversation) and starts the chosen agent in the session's folder with one short prompt that points at it. The agent saves its new session itself: burrow-G still never writes into an agent's files, and there is no native import for any agent yet.
+`e` on a session opens a small dialog: **Save to file**, or **Continue in** any agent installed on this machine. Continuing writes a short handoff file from the session's export (the latest summary and the recent conversation) and starts the chosen agent in the session's folder with one short prompt that points at it. The agent saves its new session itself: burrow-G never writes into an agent's files, and no agent uses a native import, not even OpenCode's.
 
 ## Decision
 
@@ -144,5 +144,4 @@ type Launch struct {
 ## Follow-up
 
 - [ ] Mask known secret shapes (keys, tokens, private keys) in what goes to another agent: the handoff file and a masked copy of the export for it to point at.
-- [ ] Native import where an agent has one (OpenCode `session import`), as a better "Continue in" for that agent.
 - [ ] A `burrow-g handoff <id> <agent>` command, if the shell needs it.
