@@ -91,7 +91,7 @@ func main() {
 		if sudoUser != "" {
 			term = nil // a root terminal can't open tabs in the user's desktop
 		}
-		chosen, err := tui.Run(store, sources, home, term)
+		chosen, err := tui.Run(store, sources, home, term, version)
 		if err != nil {
 			fail(err)
 		}

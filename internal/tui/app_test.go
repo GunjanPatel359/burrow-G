@@ -22,8 +22,9 @@ import (
 )
 
 type fakeSource struct {
-	name string
-	list []session.Session
+	name   string
+	list   []session.Session
+	export func(session.Session, *portable.Writer) error // nil: not supported
 }
 
 func (f fakeSource) Name() string                     { return f.name }
@@ -32,8 +33,11 @@ func (f fakeSource) ResumeCommand(s session.Session) []string {
 	return []string{f.name, "--resume", s.ID}
 }
 func (f fakeSource) Delete(session.Session, string) error { return nil }
-func (fakeSource) Export(session.Session, *portable.Writer) error {
-	return session.ErrUnsupported
+func (f fakeSource) Export(s session.Session, w *portable.Writer) error {
+	if f.export == nil {
+		return session.ErrUnsupported
+	}
+	return f.export(s, w)
 }
 
 func testModel(t *testing.T) (model, *db.DB) {
@@ -85,7 +89,7 @@ func run(cmd tea.Cmd) []tea.Msg {
 func deliver(m model, cmd tea.Cmd) model {
 	for _, msg := range run(cmd) {
 		switch msg.(type) {
-		case refreshedMsg, openedMsg, bookmarkedMsg, agentlist.SelectedMsg,
+		case refreshedMsg, openedMsg, bookmarkedMsg, exportedMsg, agentlist.SelectedMsg,
 			commandbar.RanMsg, commandbar.PreviewMsg, commandbar.ClosedMsg:
 			next, more := m.Update(msg)
 			m = deliver(next.(model), more)

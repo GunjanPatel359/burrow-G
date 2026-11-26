@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Export a session: press `e` on it. The whole conversation, every tool call with its output,
+  and the compaction summaries go to `~/.local/share/burrow-g/exports/<agent>-<id>.jsonl`, in
+  one format for all five agents (`burrow-session/1`, spec 0003). The file is readable only by
+  you. OpenCode sessions go through OpenCode's own `session export`; the other agents' files
+  are only read.
+
 ## v0.0.2 — 2026-11-23
 
 ### Added
