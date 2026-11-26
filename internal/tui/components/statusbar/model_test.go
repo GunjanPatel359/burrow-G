@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
@@ -68,5 +69,36 @@ func TestSpinner(t *testing.T) {
 	m.Busy("refreshing...")
 	if _, cmd := m.Update(tick.(spinner.TickMsg)); cmd != nil {
 		t.Error("a tick from an earlier spinner should be dropped")
+	}
+}
+
+func TestOKFades(t *testing.T) {
+	FadeAfter = time.Millisecond
+	m := New(theme.Get(theme.Default, theme.Env{}))
+	cmd := m.OK("exported")
+	if cmd == nil {
+		t.Fatal("OK returned no fade command")
+	}
+	m, _ = m.Update(cmd())
+	if strings.Contains(m.View(), "exported") {
+		t.Errorf("view still shows the message after it faded: %q", m.View())
+	}
+}
+
+func TestFadeKeepsNewerStatus(t *testing.T) {
+	FadeAfter = time.Millisecond
+	m := New(theme.Get(theme.Default, theme.Env{}))
+	old := m.OK("refreshed")
+	m.OK("bookmarked")
+	m, _ = m.Update(old())
+	if !strings.Contains(m.View(), "bookmarked") {
+		t.Errorf("an older fade cleared a newer message: %q", m.View())
+	}
+
+	fade := m.OK("refreshed")
+	m.Error(errors.New("disk full"))
+	m, _ = m.Update(fade())
+	if !strings.Contains(m.View(), "disk full") {
+		t.Errorf("a fade cleared an error: %q", m.View())
 	}
 }

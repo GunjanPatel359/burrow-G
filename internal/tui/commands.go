@@ -42,8 +42,8 @@ func bookmark(store *db.DB, s session.Session, on bool) tea.Cmd {
 func export(src session.Source, s session.Session, dir, version string) tea.Cmd {
 	return func() tea.Msg {
 		path := filepath.Join(dir, s.Agent+"-"+s.ID+".jsonl")
-		end, err := exportSession(src, s, dir, path, version)
-		return exportedMsg{agent: s.Agent, path: path, records: end.Records, err: err}
+		_, err := exportSession(src, s, dir, path, version)
+		return exportedMsg{agent: s.Agent, title: s.Title, path: path, err: err}
 	}
 }
 

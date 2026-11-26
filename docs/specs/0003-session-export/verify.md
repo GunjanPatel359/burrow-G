@@ -9,7 +9,7 @@ _Steps follow the rollout in [index.md](index.md). Real sessions are only read; 
 - [x] `go test ./internal/portable -v` → a written file reads back equal; a file without the end line gives `ErrTruncated`; a wrong `format` is refused; a 1 MB line reads (section 2)
 - [x] `go test ./internal/agents/claude -run Export -v` → fixtures cover: compaction segments all exported in order, a parallel tool result on a side branch kept, one reply split by a tool result becomes one assistant record then one user record with every result, signature only thinking dropped and counted, injected blocks removed with the real text kept, assistant text kept word for word, a slash command kept as `/foo args`, a tool result image kept after its result, an unreadable line skipped and counted, the title equal to what `List` shows (section 5)
 - [x] `go test ./internal/agents/opencode -run Unsupported` → a `Source` without `Run` returns an error that `errors.Is(err, session.ErrUnsupported)` (section 1); every other agent now exports
-- [x] `go test ./internal/tui -run Export -v` → `e` on a session writes `<exports>/<agent>-<id>.jsonl` with folder 700 and file 600, reports `exported N records to "…"`; an existing file is narrowed to 600 and emptied; an unsupported agent reports `error: export isn't supported for <name> yet` and leaves no file; a failing export leaves no file; `e` while searching is typed into the search box (section 7)
+- [x] `go test ./internal/tui -run Export -v` → `e` on a session writes `<exports>/<agent>-<id>.jsonl` with folder 700 and file 600, reports `exported "<title>"` and clears it after 2 s; an existing file is narrowed to 600 and emptied; an unsupported agent reports `error: export isn't supported for <name> yet` and leaves no file; a failing export leaves no file; `e` while searching is typed into the search box (section 7)
 
 ### Real sessions
 - [x] The job `e` runs, on a real 30 MB Claude session → 1,867 records, 5.8 MB, file 600, folder 700, 0.3 s (section 7)
@@ -18,8 +18,8 @@ _Steps follow the rollout in [index.md](index.md). Real sessions are only read; 
 - [x] `sha256sum` of every file under `~/.claude/projects`, `~/.qoder/projects`, `~/.copilot/session-state` before and after the exports (712 files) → unchanged, except the transcript of the Claude Code session doing the verifying, which Claude itself was writing (section 1, read only)
 
 ### Terminal, by hand (`make build`, then `./bin/burrow-g`)
-- [ ] `e` on a Claude session → spinner `exporting…`, then `exported N records to "~/.local/share/burrow-g/exports/claude-<id>.jsonl"` (section 7) — _pending: needs a person at a terminal_
-- [ ] The `e export` hint shows in the status line when it fits (`TestExportKeyHint` covers the help list) (`docs/design.md`) — _pending_
+- [x] `e` on a Claude session → spinner `exporting…`, then a done message; the file appears in `~/.local/share/burrow-g/exports/` (section 7). Checked by hand 2026-11-26; that run asked for a shorter message that clears itself, now `exported "<title>"` for 2 s
+- [x] The `e export` hint shows in the status line (checked by hand, 2026-11-26) and the help list (`TestExportKeyHint`) (`docs/design.md`)
 
 ## Step 2: OpenCode
 

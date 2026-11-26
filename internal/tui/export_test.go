@@ -69,8 +69,30 @@ func TestExportKeyWritesFile(t *testing.T) {
 	if r.Header().Burrow != "9.9.9" {
 		t.Errorf("header burrow = %q, want the app's version", r.Header().Burrow)
 	}
-	if want := `exported 1 record to "` + path + `"`; !strings.Contains(m.status.View(), want) {
+	if want := `exported "From files"`; !strings.Contains(m.status.View(), want) {
 		t.Errorf("status = %q, want %q", m.status.View(), want)
+	}
+}
+
+// A done message clears itself; tests make the wait 1 ms (TestMain).
+func TestExportedMessageFades(t *testing.T) {
+	m := exportModel(t, fakeSource{name: "claude", export: writesOne})
+	m, cmd := press(m, eKey)
+
+	var fade tea.Cmd
+	for _, msg := range run(cmd) {
+		if done, ok := msg.(exportedMsg); ok {
+			var next tea.Model
+			next, fade = m.Update(done)
+			m = next.(model)
+		}
+	}
+	if fade == nil {
+		t.Fatal("no fade command after the export finished")
+	}
+	next, _ := m.Update(fade())
+	if strings.Contains(next.(model).status.View(), "exported") {
+		t.Errorf("status still shows the message: %q", next.(model).status.View())
 	}
 }
 

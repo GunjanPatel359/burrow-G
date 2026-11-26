@@ -194,7 +194,7 @@ Only from the TUI for now: there is no `burrow-g export` command and no command 
 - The key comes from `keys.go` like every other binding (`e`, help `export`), so the status line hints and the help command's key list show it.
 - Status line, in `docs/design.md` voice:
   - busy: `exporting` + `t.Glyph.Ellipsis`
-  - done: `exported 6716 records to "~/.local/share/burrow-g/exports/claude-3cbaaae5.jsonl"` (the path shortened with `~` like the details box)
+  - done: `exported "zOS support in motaCH"` (the session title, like `bookmarked "…"`; the folder is in the README), cleared after 2 s like every done message
   - not yet: `error: export isn't supported for Copilot CLI yet` (the agent's display name)
   - failure: `error: <message>`
 

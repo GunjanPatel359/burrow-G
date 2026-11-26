@@ -145,7 +145,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
-	case spinner.TickMsg:
+	case spinner.TickMsg, statusbar.FadedMsg:
 		var cmd tea.Cmd
 		m.status, cmd = m.status.Update(msg)
 		return m, cmd
@@ -162,7 +162,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if msg.err != nil {
 				m.status.Error(msg.err)
 			} else {
-				m.status.OK("refreshed")
+				return m, m.status.OK("refreshed")
 			}
 		}
 		return m, nil
@@ -170,10 +170,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case openedMsg:
 		if msg.err != nil {
 			m.status.Error(msg.err)
-		} else {
-			m.status.OK(fmt.Sprintf("opened %q in a new tab", msg.title))
+			return m, nil
 		}
-		return m, nil
+		return m, m.status.OK(fmt.Sprintf("opened %q in a new tab", msg.title))
 
 	case exportedMsg:
 		switch {
@@ -182,7 +181,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case msg.err != nil:
 			m.status.Error(msg.err)
 		default:
-			m.status.OK(fmt.Sprintf("exported %d %s to %q", msg.records, plural(msg.records, "record"), helpers.ShortPath(msg.path, m.home)))
+			return m, m.status.OK(fmt.Sprintf("exported %q", msg.title))
 		}
 		return m, nil
 
@@ -197,11 +196,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.syncDetails()
 		}
 		if msg.on {
-			m.status.OK(fmt.Sprintf("bookmarked %q", msg.s.Title))
-		} else {
-			m.status.OK(fmt.Sprintf("removed bookmark from %q", msg.s.Title))
+			return m, m.status.OK(fmt.Sprintf("bookmarked %q", msg.s.Title))
 		}
-		return m, nil
+		return m, m.status.OK(fmt.Sprintf("removed bookmark from %q", msg.s.Title))
 
 	case agentlist.SelectedMsg:
 		return m, m.selectAgent(msg.Name)
@@ -290,7 +287,7 @@ func (m *model) apply(e event.Event) tea.Cmd {
 		m.setTheme(theme.Get(e.Name, m.env))
 		if !e.Preview {
 			m.saved = e.Name
-			m.status.OK(themeSaved(e.Name, m.env))
+			return m.status.OK(themeSaved(e.Name, m.env))
 		}
 	case event.Refresh:
 		if m.agent == nil {
@@ -394,11 +391,4 @@ func (m *model) syncDetails() {
 	} else {
 		m.details.Clear()
 	}
-}
-
-func plural(n int, word string) string {
-	if n == 1 {
-		return word
-	}
-	return word + "s"
 }

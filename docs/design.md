@@ -168,7 +168,7 @@ fmt.Fprint(w, ui.Row(t, left, right, m.Width(), index == m.Index(), d.active))
 | selected, pane unfocused | Muted `▌` on SelectedInactive (16 colors and no color: the marker alone) |
 | pane header | Accent bold when focused, Muted bold when not |
 | busy | spinner in Warning, then `refreshing…` or `opening…` |
-| done | `●` in Success, then past tense: `refreshed`, `opened "x" in a new tab` |
+| done | `●` in Success, then past tense: `refreshed`, `opened "x" in a new tab`. Clears itself after 2 s (`statusbar.FadeAfter`) unless something newer replaced it; errors stay until replaced |
 | error | `●` in Error, then `error: <message>` |
 | search match | matched letters of the title in Match. Matches only in the folder, or in the part cut off, are not shown. |
 | agent has no sessions | `no sessions yet` · `start one in <Agent> and press r` |
@@ -177,7 +177,7 @@ fmt.Fprint(w, ui.Row(t, left, right, m.Width(), index == m.Index(), d.active))
 | details with no session | `no sessions` in Muted |
 | window too small | `make the window bigger` · `needs 40×8` |
 
-**The spinner.** `statusbar` owns it. `Busy(text)` starts a new spinner and returns its first tick; calling it again while busy only changes the text. `OK`, `Error` and `Clear` stop it. Ticks from a stopped or older spinner are dropped, so nothing redraws while idle. In `app.go`, batch the command `Busy` returns with the job it describes.
+**The spinner.** `statusbar` owns it. `Busy(text)` starts a new spinner and returns its first tick; calling it again while busy only changes the text. `OK`, `Error` and `Clear` stop it. `OK` returns the command that fades its message; return it from `Update` like any other. Ticks from a stopped or older spinner are dropped, so nothing redraws while idle. In `app.go`, batch the command `Busy` returns with the job it describes.
 
 **Empty states.** Each one lives where its words come from. The search one lives in `sessionlist`, because it knows the query. The agent ones live in `layout.go`, because it knows the agent.
 
