@@ -17,6 +17,14 @@ func TestMask(t *testing.T) {
 		{"slack", "xoxb-1234567890-abcdef", "[redacted]"},
 		{"bearer", "Authorization: Bearer abcdefghijklmnopqrstuvwxyz", "Authorization: Bearer [redacted]"},
 		{"pem", "-----BEGIN RSA PRIVATE KEY-----\nMIIE\nabc\n-----END RSA PRIVATE KEY-----", "[redacted]"},
+		{"pem without end", "-----BEGIN OPENSSH PRIVATE KEY-----\nb3Blbn", "[redacted]"},
+		{"aws secret by label", "aws_secret_access_key = " + strings.Repeat("k", 40), "aws_secret_access_key = [redacted]"},
+		{"aws secret env", "AWS_SECRET_ACCESS_KEY=\"" + strings.Repeat("k", 40) + "\"", "AWS_SECRET_ACCESS_KEY=\"[redacted]\""},
+		{"stripe", "sk_live_" + strings.Repeat("e", 24), "[redacted]"},
+		{"google", "AIza" + strings.Repeat("f", 35), "[redacted]"},
+		{"jwt", "eyJhbGciOiJIUzI1.eyJzdWIiOiIxMjM0.SflKxwRJSMeKKF2QT4", "[redacted]"},
+		{"npm", "npm_" + strings.Repeat("g", 36), "[redacted]"},
+		{"gitlab", "glpat-" + strings.Repeat("h", 20), "[redacted]"},
 		{"plain words stay", "sk-short and Bearer token", "sk-short and Bearer token"},
 	}
 	for _, tt := range tests {

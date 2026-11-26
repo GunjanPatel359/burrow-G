@@ -73,7 +73,7 @@ func TestToolLine(t *testing.T) {
 		{"command as list", "shell", `{"command":["bash","-lc","ls"]}`, "shell bash -lc ls"},
 		{"no primary arg", "TodoWrite", `{"todos":[]}`, "TodoWrite"},
 		{"not json", "Odd", `nope`, "Odd"},
-		{"cut to 120", "Bash", `{"command":"` + long + `"}`, "Bash " + strings.Repeat("a", 119) + "…"},
+		{"kept whole for masking", "Bash", `{"command":"` + long + `"}`, "Bash " + long},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -101,5 +101,24 @@ func TestAdd_MergesSameRoleInOrder(t *testing.T) {
 	want := "assistant:one\n\nmore:Bash ls,Read a.go|assistant:two:|user:ok:"
 	if strings.Join(got, "|") != want {
 		t.Errorf("got  %q\nwant %q", strings.Join(got, "|"), want)
+	}
+}
+
+func TestMarkdown_CutsToolArgumentsAfterMasking(t *testing.T) {
+	token := "ghp_" + strings.Repeat("Z", 40)
+	tr := sample()
+	tr.Messages[1].Tools = []string{
+		"Bash " + strings.Repeat("a", 100) + " " + token, // the token crosses the 120 character cut
+		"Bash " + strings.Repeat("b", 200),
+	}
+	got, st := Markdown(tr, time.Time{})
+	if strings.Contains(got, "ZZZZ") {
+		t.Errorf("part of the token leaked:\n%s", got)
+	}
+	if st.Masked != 1 {
+		t.Errorf("Masked = %d, want 1", st.Masked)
+	}
+	if !strings.Contains(got, "- tool: Bash "+strings.Repeat("b", 119)+"…\n") {
+		t.Errorf("long argument not cut to 120:\n%s", got)
 	}
 }

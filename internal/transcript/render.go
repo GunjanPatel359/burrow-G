@@ -35,7 +35,7 @@ func Markdown(t session.Transcript, now time.Time) (string, Stats) {
 	var b strings.Builder
 	b.WriteString(r.mask(header(t, now)))
 	for _, m := range t.Messages {
-		b.WriteString(r.mask(block(m)))
+		b.WriteString(block(m, &r))
 	}
 	out := b.String()
 	return out, Stats{Messages: len(t.Messages), Bytes: len(out), Masked: r.count, Skipped: t.Skipped}
@@ -56,7 +56,9 @@ func header(t session.Transcript, now time.Time) string {
 	return h + "\n"
 }
 
-func block(m session.Message) string {
+// block renders one message, masked. Tool lines are masked whole before
+// their argument is cut, so a secret crossing the cut can't slip through.
+func block(m session.Message, r *redactor) string {
 	role := "User"
 	if m.Role == "assistant" {
 		role = "Assistant"
@@ -68,21 +70,32 @@ func block(m session.Message) string {
 	}
 	b.WriteString("\n\n")
 	if m.Text != "" {
-		b.WriteString(strings.TrimSpace(m.Text) + "\n\n")
+		b.WriteString(r.mask(strings.TrimSpace(m.Text)) + "\n\n")
 	}
 	if len(m.Tools) > 0 {
 		for _, tool := range m.Tools {
-			b.WriteString("- tool: " + tool + "\n")
+			b.WriteString("- tool: " + cutArg(r.mask(tool)) + "\n")
 		}
 		b.WriteString("\n")
 	}
 	return b.String()
 }
 
+// cutArg shortens a tool line's argument (everything after the name) to 120 characters.
+func cutArg(line string) string {
+	name, arg, ok := strings.Cut(line, " ")
+	if !ok {
+		return line
+	}
+	return name + " " + helpers.Truncate(arg, 120, "…")
+}
+
 var primaryArgs = []string{"file_path", "filePath", "path", "command", "cmd", "pattern", "url", "query"}
 
-// ToolLine is "<name> <primary argument>". input is the tool's JSON input,
-// either an object or a string holding one (Codex and Copilot quote it).
+// ToolLine is "<name> <primary argument>", the argument on one line and
+// still whole: block masks it before cutting it to 120 characters. input is
+// the tool's JSON input, either an object or a string holding one (Codex and
+// Copilot quote it).
 func ToolLine(name string, input json.RawMessage) string {
 	var quoted string
 	if json.Unmarshal(input, &quoted) == nil {
@@ -101,7 +114,7 @@ func ToolLine(name string, input json.RawMessage) string {
 		if arg == "" {
 			continue
 		}
-		return name + " " + helpers.Truncate(arg, 120, "…")
+		return name + " " + strings.Join(strings.Fields(arg), " ")
 	}
 	return name
 }

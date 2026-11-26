@@ -20,6 +20,7 @@ type Transcript struct {
 // Transcriber is implemented by agents that can read a whole conversation
 // and start a new session with a first prompt.
 type Transcriber interface {
+	Name() string
 	Transcript(s Session) (Transcript, error)
 	// StartCommand returns nil when the agent can't take a first prompt.
 	StartCommand(dir, prompt string) []string

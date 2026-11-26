@@ -103,3 +103,47 @@ func TestMarkdown_NeverTrimmed(t *testing.T) {
 		t.Error("export must keep everything")
 	}
 }
+
+func TestPrompt_DropsControlBytes(t *testing.T) {
+	tr := sample()
+	tr.Messages[0].Text = "before\x00after\x1b[31m\ttab"
+	got, _ := Prompt(tr)
+	if strings.ContainsAny(got, "\x00\x1b") || !strings.Contains(got, "beforeafter[31m\ttab") {
+		t.Errorf("control bytes left in: %q", got)
+	}
+}
+
+func TestPrompt_MaskedCountsOnlySentMessages(t *testing.T) {
+	tr := session.Transcript{Session: session.Session{Agent: "claude", ID: "abc", Title: "Long", Dir: "/tmp"}}
+	tr.Messages = append(tr.Messages, session.Message{Role: "user", Text: "goal"})
+	for i := range 200 {
+		text := strings.Repeat("x", 1000)
+		if i == 5 {
+			text += " AKIAABCDEFGHIJKLMNOP" // in the middle, which gets dropped
+		}
+		tr.Messages = append(tr.Messages, session.Message{Role: "assistant", Text: text}, session.Message{Role: "user", Text: "ok"})
+	}
+	got, st := Prompt(tr)
+	if st.Omitted == 0 || strings.Contains(got, "AKIA") {
+		t.Fatalf("want the secret's message dropped; omitted = %d", st.Omitted)
+	}
+	if st.Masked != 0 {
+		t.Errorf("Masked = %d, want 0: the masked message was never sent", st.Masked)
+	}
+}
+
+func TestFit_TinyRoomKeepsCountHonest(t *testing.T) {
+	blocks := []string{strings.Repeat("a", 50), "b", strings.Repeat("c", 50)}
+	body, kept := fit(blocks, 0, 30)
+	if len(body) > 30 {
+		t.Fatalf("body is %d bytes, over 30", len(body))
+	}
+	for _, i := range kept {
+		if i != 0 && i != 2 {
+			t.Errorf("kept %v includes a dropped message", kept)
+		}
+	}
+	if len(kept) == 2 && !strings.Contains(body, "a") {
+		t.Errorf("kept %v but the first message is empty: %q", kept, body)
+	}
+}

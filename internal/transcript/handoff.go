@@ -13,7 +13,7 @@ func Handoff(src, dst session.Transcriber, s session.Session, lookPath func(stri
 	if err := session.CheckDir(s); err != nil {
 		return nil, Stats{}, err
 	}
-	name := agentName(dst)
+	name := dst.Name()
 	probe := dst.StartCommand(s.Dir, "")
 	if len(probe) == 0 {
 		return nil, Stats{}, fmt.Errorf("%s can't start with a first prompt yet", name)
@@ -77,11 +77,4 @@ func size(n int) string {
 		return fmt.Sprintf("%d B", n)
 	}
 	return fmt.Sprintf("%.1f KB", float64(n)/1000)
-}
-
-func agentName(t session.Transcriber) string {
-	if n, ok := t.(interface{ Name() string }); ok {
-		return n.Name()
-	}
-	return "agent"
 }

@@ -22,23 +22,42 @@ func preamble(s session.Session) string {
 }
 
 // Prompt is the preamble plus the masked transcript, trimmed to Budget.
-// Redaction runs first, so the budget counts the masked text.
+// Redaction runs first, so the budget counts the masked text, and Masked
+// counts only what was sent.
 func Prompt(t session.Transcript) (string, Stats) {
 	var r redactor
-	head := cut(r.mask(preamble(t.Session)+header(t, time.Time{})), Budget/2)
+	head := cut(clean(r.mask(preamble(t.Session)+header(t, time.Time{}))), Budget/2)
+	masked := r.count
 	blocks := make([]string, len(t.Messages))
+	counts := make([]int, len(t.Messages))
 	for i, m := range t.Messages {
-		blocks[i] = r.mask(block(m))
+		var br redactor
+		blocks[i] = clean(block(m, &br))
+		counts[i] = br.count
 	}
 	body, kept := fit(blocks, firstUser(t.Messages), Budget-len(head))
+	for _, i := range kept {
+		masked += counts[i]
+	}
 	out := head + body
 	return out, Stats{
-		Messages: kept,
+		Messages: len(kept),
 		Bytes:    len(out),
-		Omitted:  len(blocks) - kept,
-		Masked:   r.count,
+		Omitted:  len(blocks) - len(kept),
+		Masked:   masked,
 		Skipped:  t.Skipped,
 	}
+}
+
+// clean drops control characters other than newline and tab: a NUL can't
+// pass through exec, and the others only garble the target's input.
+func clean(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r == '\n' || r == '\t' || (r >= 0x20 && r != 0x7f) {
+			return r
+		}
+		return -1
+	}, s)
 }
 
 func firstUser(msgs []session.Message) int {
@@ -52,18 +71,18 @@ func firstUser(msgs []session.Message) int {
 
 // fit keeps the first user message and as many of the newest as fit in room,
 // with one line standing in for the dropped middle. It returns the text and
-// how many messages it kept.
-func fit(blocks []string, first, room int) (string, int) {
+// the indexes of the messages it kept.
+func fit(blocks []string, first, room int) (string, []int) {
 	total := 0
 	for _, b := range blocks {
 		total += len(b)
 	}
 	if total <= room {
-		return strings.Join(blocks, ""), len(blocks)
+		return strings.Join(blocks, ""), indexes(0, len(blocks)-1)
 	}
 	last := len(blocks) - 1
 	if last == 0 {
-		return cut(blocks[0], room), 1
+		return cut(blocks[0], room), []int{0}
 	}
 	if first == last {
 		first = 0
@@ -85,11 +104,27 @@ func fit(blocks []string, first, room int) (string, int) {
 		}
 		space := room - len(line)
 		head := cut(blocks[first], min(len(blocks[first]), space/2))
-		return head + line + cut(blocks[last], space-len(head)), 2
+		tail := cut(blocks[last], space-len(head))
+		var kept []int
+		if head != "" {
+			kept = append(kept, first)
+		}
+		if tail != "" {
+			kept = append(kept, last)
+		}
+		return head + line + tail, kept
 	}
 
-	kept := 1 + last - start + 1
-	return blocks[first] + omittedLine(len(blocks)-kept) + strings.Join(blocks[start:], ""), kept
+	kept := append([]int{first}, indexes(start, last)...)
+	return blocks[first] + omittedLine(len(blocks)-len(kept)) + strings.Join(blocks[start:], ""), kept
+}
+
+func indexes(from, to int) []int {
+	out := make([]int, 0, max(to-from+1, 0))
+	for i := from; i <= to; i++ {
+		out = append(out, i)
+	}
+	return out
 }
 
 func omittedLine(n int) string {
