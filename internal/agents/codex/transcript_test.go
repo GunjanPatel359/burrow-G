@@ -1,6 +1,7 @@
 package codex
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -66,5 +67,26 @@ func TestTranscript_NotFound(t *testing.T) {
 func TestStartCommand(t *testing.T) {
 	if got := (Source{}).StartCommand("/tmp", "hi"); strings.Join(got, " ") != "codex hi" {
 		t.Errorf("got %q", got)
+	}
+}
+
+func TestCustomInput(t *testing.T) {
+	tests := []struct {
+		name, input, want string
+	}{
+		{"one command", `text(await tools.exec_command({cmd:"go test ./..."}))`, "exec go test ./..."},
+		{"escaped quotes", `text(await tools.exec_command({cmd:"rg \"a b\" docs"}))`, `exec rg "a b" docs`},
+		{"single quotes", `text(await tools.exec_command({cmd:'sed -n \'1,5p\' a.go'}))`, "exec sed -n '1,5p' a.go"},
+		{"several commands", "await Promise.allSettled([\ntools.exec_command({cmd:\"ls\"}),\ntools.exec_command({cmd:\"pwd\"})])", "exec ls (+1 more)"},
+		{"inner tool", `text(await tools.apply_patch("*** Begin Patch"))`, "exec apply_patch"},
+		{"plain text", `*** Begin Patch`, "exec"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			raw, _ := json.Marshal(tt.input)
+			if got := transcript.ToolLine("exec", customInput(raw)); got != tt.want {
+				t.Errorf("got %q, want %q", got, tt.want)
+			}
+		})
 	}
 }

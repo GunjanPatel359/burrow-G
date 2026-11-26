@@ -10,6 +10,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -85,8 +87,49 @@ func addItem(t *session.Transcript, it item) {
 	case "function_call":
 		t.Add(session.Message{Role: "assistant", Time: it.Timestamp, Tools: []string{transcript.ToolLine(p.Name, p.Arguments)}})
 	case "custom_tool_call":
-		t.Add(session.Message{Role: "assistant", Time: it.Timestamp, Tools: []string{transcript.ToolLine(p.Name, p.Input)}})
+		t.Add(session.Message{Role: "assistant", Time: it.Timestamp, Tools: []string{transcript.ToolLine(p.Name, customInput(p.Input))}})
 	}
+}
+
+var (
+	execCmd  = regexp.MustCompile(`cmd:\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')`)
+	execTool = regexp.MustCompile(`tools\.(\w+)\(`)
+)
+
+// customInput turns a custom tool's input into JSON ToolLine can read. The
+// exec tool takes JavaScript such as tools.exec_command({cmd:"go test"}), so
+// its first shell command becomes the argument, else the inner tool's name.
+func customInput(raw json.RawMessage) json.RawMessage {
+	var src string
+	if json.Unmarshal(raw, &src) != nil || json.Valid([]byte(src)) {
+		return raw
+	}
+	arg := ""
+	if cmds := execCmd.FindAllStringSubmatch(src, -1); len(cmds) > 0 {
+		arg = unquote(cmds[0][1])
+		if len(cmds) > 1 {
+			arg += fmt.Sprintf(" (+%d more)", len(cmds)-1)
+		}
+	} else if m := execTool.FindStringSubmatch(src); m != nil {
+		arg = m[1]
+	}
+	if arg == "" {
+		return raw
+	}
+	out, _ := json.Marshal(map[string]string{"cmd": arg})
+	return out
+}
+
+// unquote reads a JavaScript string literal, keeping it as written if it
+// uses an escape Go doesn't know.
+func unquote(lit string) string {
+	if lit[0] == '\'' {
+		lit = `"` + strings.ReplaceAll(strings.ReplaceAll(lit[1:len(lit)-1], `\'`, `'`), `"`, `\"`) + `"`
+	}
+	if s, err := strconv.Unquote(lit); err == nil {
+		return s
+	}
+	return lit[1 : len(lit)-1]
 }
 
 func isInjected(s string) bool {
