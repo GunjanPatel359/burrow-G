@@ -47,4 +47,6 @@ Render a bounded Markdown file from the portable export (latest summary plus rec
 
 Option 1 keeps the rule that makes burrow-G safe to run and needs no new reader: it renders from the export spec 0003 already built. The budget answers the size force with the agent's own condensing (the compaction summary) instead of a blind cut, and the file answers the argument limit and the process list together. The user chose handoff only, with no native import for any agent (2026-11-26), so every agent behaves the same.
 
+The 100,000-byte budget was weighed against a much larger one (10 MB) on 2026-11-26 and kept: no model takes in 10 MB (about 2.5M tokens), agents read a big file in pieces from the top, and the file runs oldest to newest, so the part where the work stopped would likely never be read. Older detail is one file away: the handoff file names the full export.
+
 The dialog on `e` replaces a separate handoff key: saving and continuing are the same question, "where does this session go?". The picker and the per agent start commands follow PR #24 by Prashant Dobariya, which designed and checked them first.
