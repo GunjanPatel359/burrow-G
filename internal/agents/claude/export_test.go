@@ -223,3 +223,17 @@ func TestExportCompactionRecord(t *testing.T) {
 	}
 	t.Error("no compaction record")
 }
+
+// Only user turns carry injected blocks; the assistant writing about them
+// must come through word for word.
+func TestExportKeepsAssistantTags(t *testing.T) {
+	_, _, records, end := exportFile(t, "testdata/export/assistant_tags.jsonl", "tags")
+
+	want := "It adds <system-reminder>notes</system-reminder> and <command-name>/x</command-name>."
+	if got := texts(records); len(got) != 2 || got[1] != want {
+		t.Errorf("texts = %q, want the assistant's text unchanged", got)
+	}
+	if end.Dropped["injected text"] != 0 {
+		t.Errorf("injected text = %d, want 0", end.Dropped["injected text"])
+	}
+}

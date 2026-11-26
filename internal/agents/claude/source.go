@@ -57,7 +57,7 @@ func (Source) Delete(s session.Session, trashDir string) error {
 
 // Export reads the session's JSONL file itself: Claude has no structured
 // export of its own (/export saves the terminal view). The reader is in
-// export.go.
+// branch.go, records.go and content.go.
 func (c Source) Export(s session.Session, w *portable.Writer) error {
 	path, err := c.sessionFile(s.ID)
 	if err != nil {
