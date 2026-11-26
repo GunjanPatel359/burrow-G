@@ -43,11 +43,14 @@ type Launch struct {
 	Report  string // printed before the terminal is taken over; "" for none
 }
 
-// selection is shared by every copy of the model, so the command bar sees
-// the session highlighted now, not when it was built.
-type selection struct {
-	s  session.Session
-	ok bool
+// shared is shared by every copy of the model, so the command bar sees the
+// session highlighted now and the agents found on PATH, not what was true
+// when it was built.
+type shared struct {
+	s       session.Session
+	ok      bool
+	targets []string // agents that take a first prompt and are on PATH
+	loaded  bool     // targets has been looked up
 }
 
 type model struct {
@@ -65,7 +68,8 @@ type model struct {
 	bar      commandbar.Model
 	picker   agentpicker.Model
 	pickFor  session.Session // the session the picker hands off
-	sel      *selection
+	sel      *shared
+	pending  *session.Session // waiting for targets before the picker opens
 
 	focus    pane
 	agent    session.Source
@@ -88,7 +92,7 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 		return theme.Initial(name, dark)
 	}
 	t := theme.Get(current(), env)
-	sel := &selection{}
+	sel := &shared{}
 	svc := commands.New(command.Env{
 		Store:   store,
 		Themes:  theme.Names(),
@@ -99,7 +103,7 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 		Selected: func() (session.Session, bool) {
 			return sel.s, sel.ok
 		},
-		LookPath: exec.LookPath,
+		Targets: func() []string { return sel.targets },
 	})
 	m := model{
 		store:    store,
@@ -149,10 +153,11 @@ func Run(store *db.DB, sources []session.Source, home string, term launch.Termin
 }
 
 func (m model) Init() tea.Cmd {
+	targets := findTargets(m.sources, m.lookPath)
 	if m.agent == nil {
-		return nil
+		return targets
 	}
-	return tea.Batch(refresh(m.store, m.agent), m.status.Tick())
+	return tea.Batch(refresh(m.store, m.agent), m.status.Tick(), targets)
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -226,6 +231,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		busy := m.status.Busy("opening" + m.theme.Glyph.Ellipsis)
 		return m, tea.Batch(busy, openTab(m.terminal, msg.s, msg.argv, report))
+
+	case targetsMsg:
+		m.sel.targets, m.sel.loaded = msg.names, true
+		if m.pending != nil {
+			s := *m.pending
+			m.pending = nil
+			m.openPicker(s)
+		}
+		return m, nil
 
 	case agentpicker.PickedMsg:
 		return m, m.handoff(m.pickFor, msg.Agent, msg.Here)
@@ -348,7 +362,7 @@ func (m *model) apply(e event.Event) tea.Cmd {
 			return nil
 		}
 		busy := m.status.Busy("refreshing" + m.theme.Glyph.Ellipsis)
-		return tea.Batch(busy, refresh(m.store, m.agent))
+		return tea.Batch(busy, refresh(m.store, m.agent), findTargets(m.sources, m.lookPath))
 	case event.ShowHelp:
 		m.help = strings.Split(strings.TrimSuffix(e.Text, "\n"), "\n")
 		m.helpTop = 0
@@ -365,22 +379,27 @@ func (m *model) apply(e event.Event) tea.Cmd {
 		if e.Agent != "" {
 			return m.handoff(e.Session, e.Agent, false)
 		}
-		var names []string
-		for _, src := range transcript.Targets(m.sources, m.lookPath) {
-			names = append(names, src.Name())
-		}
-		if len(names) == 0 {
-			m.status.Error(fmt.Errorf("no agent CLI found on PATH"))
+		if !m.sel.loaded {
+			m.pending = &e.Session // opens when targetsMsg arrives
 			return nil
 		}
-		m.pickFor = e.Session
-		m.picker.Open(e.Session.Title, names, m.terminal != nil)
+		m.openPicker(e.Session)
 	case event.Quit:
 		return tea.Quit
 	default:
 		m.status.Error(fmt.Errorf("unknown event %T", e))
 	}
 	return nil
+}
+
+// openPicker shows the agents found on PATH, or says there are none.
+func (m *model) openPicker(s session.Session) {
+	if len(m.sel.targets) == 0 {
+		m.status.Error(fmt.Errorf("no agent CLI found on PATH"))
+		return
+	}
+	m.pickFor = s
+	m.picker.Open(s.Title, m.sel.targets, m.terminal != nil)
 }
 
 // handoff builds the prompt in the background; handoffReadyMsg launches it.

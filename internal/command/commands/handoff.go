@@ -2,12 +2,10 @@ package commands
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 
 	"github.com/GunjanPatel359/burrow-G/internal/command"
 	"github.com/GunjanPatel359/burrow-G/internal/command/event"
-	"github.com/GunjanPatel359/burrow-G/internal/transcript"
 )
 
 // Handoff continues the selected session in another agent. Without
@@ -32,15 +30,10 @@ var Handoff = command.Command{
 }
 
 func targetNames(env command.Env) []string {
-	lookPath := env.LookPath
-	if lookPath == nil {
-		lookPath = exec.LookPath
+	if env.Targets == nil {
+		return nil
 	}
-	var names []string
-	for _, src := range transcript.Targets(env.Sources, lookPath) {
-		names = append(names, src.Name())
-	}
-	return names
+	return env.Targets()
 }
 
 func suggestTarget(env command.Env, typed string) []command.Suggestion {

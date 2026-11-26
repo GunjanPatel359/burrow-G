@@ -41,6 +41,18 @@ func exportSession(src session.Transcriber, s session.Session, home string) tea.
 	}
 }
 
+// findTargets looks up which agents can take a handoff. It stats PATH, so it
+// runs as a job, not inside Update.
+func findTargets(sources []session.Source, lookPath func(string) (string, error)) tea.Cmd {
+	return func() tea.Msg {
+		var names []string
+		for _, src := range transcript.Targets(sources, lookPath) {
+			names = append(names, src.Name())
+		}
+		return targetsMsg{names: names}
+	}
+}
+
 // prepareHandoff builds the argv that starts agent with s's conversation.
 func prepareHandoff(src, dst session.Transcriber, s session.Session, agent string, here bool, lookPath func(string) (string, error)) tea.Cmd {
 	return func() tea.Msg {

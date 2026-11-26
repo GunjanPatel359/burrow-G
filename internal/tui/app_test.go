@@ -84,7 +84,7 @@ func deliver(m model, cmd tea.Cmd) model {
 		switch msg.(type) {
 		case refreshedMsg, openedMsg, bookmarkedMsg, agentlist.SelectedMsg,
 			commandbar.RanMsg, commandbar.PreviewMsg, commandbar.ClosedMsg,
-			exportedMsg, handoffReadyMsg, agentpicker.PickedMsg, agentpicker.ClosedMsg:
+			exportedMsg, handoffReadyMsg, targetsMsg, agentpicker.PickedMsg, agentpicker.ClosedMsg:
 			next, more := m.Update(msg)
 			m = deliver(next.(model), more)
 		}

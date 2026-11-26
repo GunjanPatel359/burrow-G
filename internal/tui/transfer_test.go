@@ -35,6 +35,11 @@ var (
 
 // transferModel has a claude session in dir and claude plus codex installed.
 func transferModel(t *testing.T, term launch.Terminal, dir string) (model, string) {
+	return transferModelWith(t, term, dir, func(string) (string, error) { return "/bin/x", nil })
+}
+
+// transferModelWith takes the PATH lookup, which runs once at startup.
+func transferModelWith(t *testing.T, term launch.Terminal, dir string, lookPath func(string) (string, error)) (model, string) {
 	t.Helper()
 	store, err := db.Open(filepath.Join(t.TempDir(), "sessions.db"), "0.0.2")
 	if err != nil {
@@ -49,7 +54,7 @@ func transferModel(t *testing.T, term launch.Terminal, dir string) (model, strin
 	codex := talker{fakeSource: fakeSource{name: "codex"}}
 	plain := fakeSource{name: "plain"}
 	m := newModel(store, []session.Source{claude, codex, plain}, home, term, theme.Env{}, alwaysDark)
-	m.lookPath = func(string) (string, error) { return "/bin/x", nil }
+	m.lookPath = lookPath
 	m = deliver(m, m.Init())
 	m, _ = press(m, enter) // to the sessions pane
 	return m, home
@@ -142,10 +147,23 @@ func TestHandoffRefusesMissingFolder(t *testing.T) {
 }
 
 func TestHandoffNoAgentInstalled(t *testing.T) {
-	m, _ := transferModel(t, nil, t.TempDir())
-	m.lookPath = func(string) (string, error) { return "", errors.New("no") }
+	m, _ := transferModelWith(t, nil, t.TempDir(), func(string) (string, error) { return "", errors.New("no") })
 	m = pressAll(m, tKey)
 	if m.picker.Opened() || !strings.Contains(m.View(), "no agent CLI found on PATH") {
 		t.Errorf("status:\n%s", m.View())
+	}
+}
+
+func TestHandoffKeyWaitsForTargets(t *testing.T) {
+	m, _ := transferModel(t, nil, t.TempDir())
+	m.sel.targets, m.sel.loaded = nil, false // as if the startup lookup hasn't answered yet
+	m = pressAll(m, tKey)
+	if m.picker.Opened() || m.pending == nil {
+		t.Fatal("t before the lookup should wait, not open an empty picker")
+	}
+	next, _ := m.Update(targetsMsg{names: []string{"claude", "codex"}})
+	m = next.(model)
+	if !m.picker.Opened() || m.pending != nil {
+		t.Error("the picker should open when the targets arrive")
 	}
 }

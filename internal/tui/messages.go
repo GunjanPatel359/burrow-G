@@ -21,6 +21,9 @@ type openedMsg struct {
 	err    error
 }
 
+// targetsMsg arrives with the agents a session can be handed to.
+type targetsMsg struct{ names []string }
+
 // exportedMsg arrives when a session was written to an export file.
 type exportedMsg struct {
 	path  string

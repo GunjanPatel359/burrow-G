@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"errors"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -102,31 +101,10 @@ func TestTheme_UnknownName(t *testing.T) {
 	}
 }
 
-type fakeAgent struct{ name, bin string }
-
-func (f fakeAgent) Name() string                           { return f.name }
-func (f fakeAgent) List() ([]session.Session, error)       { return nil, nil }
-func (f fakeAgent) ResumeCommand(session.Session) []string { return nil }
-func (f fakeAgent) Delete(session.Session, string) error   { return nil }
-func (f fakeAgent) Transcript(session.Session) (session.Transcript, error) {
-	return session.Transcript{}, nil
-}
-func (f fakeAgent) StartCommand(dir, prompt string) []string {
-	if f.bin == "" {
-		return nil
-	}
-	return []string{f.bin, prompt}
-}
-
 func transferEnv(t *testing.T, sel *session.Session) command.Env {
 	env := testEnv(t)
-	env.Sources = []session.Source{fakeAgent{"claude", "claude"}, fakeAgent{"qoder", ""}, fakeAgent{"codex", "codex"}}
-	env.LookPath = func(bin string) (string, error) {
-		if bin == "codex" {
-			return "", errors.New("not found")
-		}
-		return "/bin/" + bin, nil
-	}
+	// qoder takes no first prompt and codex is not on PATH, so only claude is a target.
+	env.Targets = func() []string { return []string{"claude"} }
 	env.Selected = func() (session.Session, bool) {
 		if sel == nil {
 			return session.Session{}, false
