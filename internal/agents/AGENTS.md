@@ -9,6 +9,9 @@ Each folder here reads one agent CLI's sessions and turns them into the shared `
 | File | Owns |
 |---|---|
 | `internal/session/session.go` | `Session`, `Source` interface, `ErrMissing`, `Sort` |
+| `internal/session/transcript.go` | `Message`, `Transcript` (with `Add`, which merges a role's records in order), `Transcriber` |
+| `internal/transcript/` | Markdown renderer, tool line rule, secret masking, 100 KB handoff budget, `Handoff` |
+| `<agent>/transcript.go` | that agent's `Transcript` reader and `StartCommand` (first prompt argv) |
 | `claude/`, `qoder/` | JSONL files under `~/.claude/projects/*/` and `~/.qoder/projects/*/`; `parse.go` reads title and folder |
 | `opencode/source.go` | `~/.local/share/opencode/opencode.db`, table `session_v2` or `session` |
 | `copilot/source.go` | `~/.copilot/session-store.db`, table `sessions` |
@@ -16,7 +19,7 @@ Each folder here reads one agent CLI's sessions and turns them into the shared `
 
 ## Conventions
 
-- Adding an agent: new folder with `source.go` (`Name`, `List`, `ResumeCommand`, `Delete`), a test file with `var _ session.Source = Source{}`, then add it to `sources` in `cmd/burrow-g/main.go` and the README table.
+- Adding an agent: new folder with `source.go` (`Name`, `List`, `ResumeCommand`, `Delete`), a test file with `var _ session.Source = Source{}`, then add it to `sources` in `cmd/burrow-g/main.go` and the README table. For export and handoff, also add `transcript.go` with `Transcript` (read only, each part passed to `Transcript.Add` in order, unreadable lines counted in `Skipped`) and `StartCommand` (nil until the agent's first prompt flag is confirmed), and `var _ session.Transcriber = Source{}` in its test.
 - `Name()` is the stable key stored in the index (`claude`, `qoder`, …). Never rename it.
 - Read only, always. SQLite opens as `file:<path>?mode=ro`. `Delete` returns a "not implemented" error for now.
 - Parsers stop reading a file as soon as they have title and folder. Title order: the agent's own title (Claude `/rename` sidecar, ai-title, thread name), then the first prompt, then `(untitled)`.

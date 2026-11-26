@@ -35,8 +35,12 @@ type item struct {
 	} `json:"payload"`
 }
 
-// injected marks user text that Codex adds itself, not the person.
-var injected = []string{"<", "# AGENTS.md instructions"}
+// injected marks user text that Codex adds itself, not the person. Other
+// text starting with "<" is kept.
+var injected = []string{
+	"# AGENTS.md instructions", "<environment_context", "<user_instructions",
+	"<skill", "<codex_internal_context",
+}
 
 func (c Source) Transcript(s session.Session) (session.Transcript, error) {
 	t := session.Transcript{Session: s}

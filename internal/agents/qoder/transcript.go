@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GunjanPatel359/burrow-G/internal/helpers"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 	"github.com/GunjanPatel359/burrow-G/internal/transcript"
 )
@@ -111,12 +112,32 @@ func messages(rec record) []session.Message {
 	return out
 }
 
-// userText turns slash commands into "/name" and drops injected tagged text.
+// injected marks user records the agent writes itself (command output, task
+// notices), not what the person typed. Other text starting with "<" is kept.
+var injected = []string{
+	"<task-notification", "<bash-stdout", "<bash-stderr", "<system-reminder",
+	"<local-command-stdout", "<local-command-stderr", "<local-command-caveat",
+}
+
+// userText turns a slash command into "/name args" and a shell escape into
+// "! command", and drops injected text.
 func userText(role, s string) string {
+	s = strings.TrimSpace(s)
 	if role != "user" {
 		return s
 	}
-	return prompt(strings.TrimSpace(s))
+	if name := helpers.Between(s, "<command-name>", "</command-name>"); name != "" {
+		return strings.TrimSpace(name + " " + helpers.Between(s, "<command-args>", "</command-args>"))
+	}
+	if cmd := helpers.Between(s, "<bash-input>", "</bash-input>"); cmd != "" {
+		return "! " + cmd
+	}
+	for _, tag := range injected {
+		if strings.HasPrefix(s, tag) {
+			return ""
+		}
+	}
+	return s
 }
 
 // stamp reads a record's time. Qoder writes a string on messages but epoch

@@ -56,3 +56,25 @@ func TestStamp(t *testing.T) {
 		}
 	}
 }
+
+func TestUserText(t *testing.T) {
+	tests := []struct{ in, want string }{
+		{"fix the build", "fix the build"},
+		{"<div> is misaligned on mobile", "<div> is misaligned on mobile"},
+		{"<pasted_content>log line</pasted_content> why?", "<pasted_content>log line</pasted_content> why?"},
+		{"<command-message>develop</command-message>\n<command-name>/develop</command-name>\n<command-args>auth</command-args>", "/develop auth"},
+		{"<command-name>/clear</command-name>\n<command-args></command-args>", "/clear"},
+		{"<bash-input>git status</bash-input>", "! git status"},
+		{"<bash-stdout>On branch main</bash-stdout><bash-stderr></bash-stderr>", ""},
+		{"<task-notification>agent finished</task-notification>", ""},
+		{"<local-command-stdout>noise</local-command-stdout>", ""},
+	}
+	for _, tt := range tests {
+		if got := userText("user", tt.in); got != tt.want {
+			t.Errorf("userText(%q) = %q, want %q", tt.in, got, tt.want)
+		}
+	}
+	if got := userText("assistant", "<b>bold</b>"); got != "<b>bold</b>" {
+		t.Errorf("assistant text must pass through, got %q", got)
+	}
+}

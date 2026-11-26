@@ -90,3 +90,18 @@ func TestCustomInput(t *testing.T) {
 		})
 	}
 }
+
+func TestIsInjected(t *testing.T) {
+	for in, want := range map[string]bool{
+		"<environment_context>\n<cwd>/tmp</cwd>": true,
+		"# AGENTS.md instructions for /tmp":      true,
+		"<skill>\n<name>develop</name>":          true,
+		"<codex_internal_context>x":              true,
+		"<div> is misaligned on mobile":          false,
+		"add a test":                             false,
+	} {
+		if got := isInjected(in); got != want {
+			t.Errorf("isInjected(%q) = %v, want %v", in, got, want)
+		}
+	}
+}
