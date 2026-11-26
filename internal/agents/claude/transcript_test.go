@@ -1,6 +1,7 @@
 package claude
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"strings"
@@ -106,6 +107,11 @@ func TestUserText(t *testing.T) {
 		{"<bash-stdout>On branch main</bash-stdout><bash-stderr></bash-stderr>", ""},
 		{"<task-notification>agent finished</task-notification>", ""},
 		{"<local-command-stdout>noise</local-command-stdout>", ""},
+		{"[Request interrupted by user]", ""},
+		{"[Request interrupted by user for tool use]", ""},
+		{"<ide_opened_file>The user opened a.go</ide_opened_file>", ""},
+		{"<system-reminder>context</system-reminder>\nwhy does this fail?", "why does this fail?"},
+		{"<system-reminders> are confusing me", "<system-reminders> are confusing me"},
 	}
 	for _, tt := range tests {
 		if got := userText("user", tt.in); got != tt.want {
@@ -114,5 +120,16 @@ func TestUserText(t *testing.T) {
 	}
 	if got := userText("assistant", "<b>bold</b>"); got != "<b>bold</b>" {
 		t.Errorf("assistant text must pass through, got %q", got)
+	}
+}
+
+func TestMessages_SkipsCompactSummary(t *testing.T) {
+	var rec record
+	raw := `{"type":"user","isCompactSummary":true,"message":{"content":"This session is being continued from a previous conversation."}}`
+	if err := json.Unmarshal([]byte(raw), &rec); err != nil {
+		t.Fatal(err)
+	}
+	if got := messages(rec); len(got) != 0 {
+		t.Errorf("a compaction summary is not a turn: %+v", got)
 	}
 }

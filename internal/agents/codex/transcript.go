@@ -35,12 +35,9 @@ type item struct {
 	} `json:"payload"`
 }
 
-// injected marks user text that Codex adds itself, not the person. Other
-// text starting with "<" is kept.
-var injected = []string{
-	"# AGENTS.md instructions", "<environment_context", "<user_instructions",
-	"<skill", "<codex_internal_context",
-}
+// injected are the tags Codex wraps around context it adds to the person's
+// turn; its AGENTS.md block has a heading instead of a tag.
+var injected = []string{"environment_context", "user_instructions", "skill", "codex_internal_context"}
 
 func (c Source) Transcript(s session.Session) (session.Transcript, error) {
 	t := session.Transcript{Session: s}
@@ -83,8 +80,11 @@ func addItem(t *session.Transcript, it item) {
 		}
 		var texts []string
 		for _, c := range p.Content {
-			if (c.Type == "input_text" || c.Type == "output_text") && !isInjected(c.Text) {
-				texts = append(texts, c.Text)
+			if c.Type != "input_text" && c.Type != "output_text" {
+				continue
+			}
+			if text := personText(p.Role, c.Text); text != "" {
+				texts = append(texts, text)
 			}
 		}
 		t.Add(session.Message{Role: p.Role, Time: it.Timestamp, Text: strings.Join(texts, "\n\n")})
@@ -136,14 +136,16 @@ func unquote(lit string) string {
 	return lit[1 : len(lit)-1]
 }
 
-func isInjected(s string) bool {
-	s = strings.TrimSpace(s)
-	for _, prefix := range injected {
-		if strings.HasPrefix(s, prefix) {
-			return true
-		}
+// personText drops the context Codex adds to a user turn and keeps what
+// the person wrote; assistant text passes through.
+func personText(role, s string) string {
+	if role != "user" {
+		return s
 	}
-	return false
+	if strings.HasPrefix(strings.TrimSpace(s), "# AGENTS.md instructions") {
+		return ""
+	}
+	return transcript.StripInjected(s, injected)
 }
 
 // findRollout finds sessions/**/rollout-<time>-<id>.jsonl.

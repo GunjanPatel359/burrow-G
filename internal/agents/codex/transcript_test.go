@@ -91,17 +91,19 @@ func TestCustomInput(t *testing.T) {
 	}
 }
 
-func TestIsInjected(t *testing.T) {
-	for in, want := range map[string]bool{
-		"<environment_context>\n<cwd>/tmp</cwd>": true,
-		"# AGENTS.md instructions for /tmp":      true,
-		"<skill>\n<name>develop</name>":          true,
-		"<codex_internal_context>x":              true,
-		"<div> is misaligned on mobile":          false,
-		"add a test":                             false,
-	} {
-		if got := isInjected(in); got != want {
-			t.Errorf("isInjected(%q) = %v, want %v", in, got, want)
+func TestPersonText(t *testing.T) {
+	tests := []struct{ role, in, want string }{
+		{"user", "<environment_context>\n<cwd>/tmp</cwd>\n</environment_context>", ""},
+		{"user", "# AGENTS.md instructions for /tmp\n\nbe nice", ""},
+		{"user", "<skill>\n<name>develop</name>\n</skill>", ""},
+		{"user", "<codex_internal_context>x</codex_internal_context>\nadd a test", "add a test"},
+		{"user", "<skills> list them all", "<skills> list them all"},
+		{"user", "<div> is misaligned on mobile", "<div> is misaligned on mobile"},
+		{"assistant", "<environment_context> is how Codex passes context", "<environment_context> is how Codex passes context"},
+	}
+	for _, tt := range tests {
+		if got := personText(tt.role, tt.in); got != tt.want {
+			t.Errorf("personText(%s, %q) = %q, want %q", tt.role, tt.in, got, tt.want)
 		}
 	}
 }

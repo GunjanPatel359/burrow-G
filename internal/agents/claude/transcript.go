@@ -22,7 +22,9 @@ type record struct {
 	Timestamp   time.Time `json:"timestamp"`
 	IsSidechain bool      `json:"isSidechain"`
 	IsMeta      bool      `json:"isMeta"`
-	Message     struct {
+	// A summary written when the conversation was compacted, not a turn.
+	IsCompactSummary bool `json:"isCompactSummary"`
+	Message          struct {
 		Content json.RawMessage `json:"content"`
 	} `json:"message"`
 }
@@ -86,7 +88,7 @@ func findFile(home, id string) (string, error) {
 // messages keeps prose and tool calls of the main conversation only, one per
 // part in order: thinking, tool results, subagent and meta records are dropped.
 func messages(rec record) []session.Message {
-	if rec.IsSidechain || rec.IsMeta || (rec.Type != "user" && rec.Type != "assistant") {
+	if rec.IsSidechain || rec.IsMeta || rec.IsCompactSummary || (rec.Type != "user" && rec.Type != "assistant") {
 		return nil
 	}
 	at := rec.Timestamp
@@ -111,11 +113,12 @@ func messages(rec record) []session.Message {
 	return out
 }
 
-// injected marks user records the agent writes itself (command output, task
-// notices), not what the person typed. Other text starting with "<" is kept.
+// injected are the tags the agent wraps around text it adds to the person's
+// turn (command output, task notices, editor context), not what they typed.
 var injected = []string{
-	"<task-notification", "<bash-stdout", "<bash-stderr", "<system-reminder",
-	"<local-command-stdout", "<local-command-stderr", "<local-command-caveat",
+	"task-notification", "bash-stdout", "bash-stderr", "system-reminder",
+	"local-command-stdout", "local-command-stderr", "local-command-caveat",
+	"ide_opened_file", "ide_selection", "ide_diagnostics",
 }
 
 // userText turns a slash command into "/name args" and a shell escape into
@@ -131,10 +134,9 @@ func userText(role, s string) string {
 	if cmd := helpers.Between(s, "<bash-input>", "</bash-input>"); cmd != "" {
 		return "! " + cmd
 	}
-	for _, tag := range injected {
-		if strings.HasPrefix(s, tag) {
-			return ""
-		}
+	// The agent records an interrupted reply as a user turn of its own.
+	if strings.HasPrefix(s, "[Request interrupted by user") {
+		return ""
 	}
-	return s
+	return transcript.StripInjected(s, injected)
 }
