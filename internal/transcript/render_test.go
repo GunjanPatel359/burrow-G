@@ -84,17 +84,22 @@ func TestToolLine(t *testing.T) {
 	}
 }
 
-func TestAdd_MergesSameRole(t *testing.T) {
+func TestAdd_MergesSameRoleInOrder(t *testing.T) {
 	var tr session.Transcript
 	tr.Add(session.Message{Role: "assistant", Text: "one"})
+	tr.Add(session.Message{Role: "assistant", Text: "more"})
 	tr.Add(session.Message{Role: "assistant", Tools: []string{"Bash ls"}})
-	tr.Add(session.Message{Role: "assistant", Text: "two"})
+	tr.Add(session.Message{Role: "assistant", Tools: []string{"Read a.go"}})
+	tr.Add(session.Message{Role: "assistant", Text: "two"}) // after a tool: starts anew
 	tr.Add(session.Message{Role: "user"})
 	tr.Add(session.Message{Role: "user", Text: "ok"})
-	if len(tr.Messages) != 2 {
-		t.Fatalf("got %d messages, want 2: %+v", len(tr.Messages), tr.Messages)
+
+	var got []string
+	for _, m := range tr.Messages {
+		got = append(got, m.Role+":"+m.Text+":"+strings.Join(m.Tools, ","))
 	}
-	if m := tr.Messages[0]; m.Text != "one\n\ntwo" || len(m.Tools) != 1 {
-		t.Errorf("merged = %+v", m)
+	want := "assistant:one\n\nmore:Bash ls,Read a.go|assistant:two:|user:ok:"
+	if strings.Join(got, "|") != want {
+		t.Errorf("got  %q\nwant %q", strings.Join(got, "|"), want)
 	}
 }

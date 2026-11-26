@@ -26,13 +26,14 @@ type Transcriber interface {
 }
 
 // Add appends m, merging it into the last message when the role repeats,
-// because agents write one reply as several records.
+// because agents write one reply as several records. Text after a tool call
+// starts a new message instead, so prose and tool lines keep their order.
 func (t *Transcript) Add(m Message) {
 	if m.Text == "" && len(m.Tools) == 0 {
 		return
 	}
 	n := len(t.Messages)
-	if n == 0 || t.Messages[n-1].Role != m.Role {
+	if n == 0 || t.Messages[n-1].Role != m.Role || (m.Text != "" && len(t.Messages[n-1].Tools) > 0) {
 		t.Messages = append(t.Messages, m)
 		return
 	}

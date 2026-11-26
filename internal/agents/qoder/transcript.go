@@ -52,8 +52,10 @@ func (q Source) Transcript(s session.Session) (session.Transcript, error) {
 			var rec record
 			if json.Unmarshal(raw, &rec) != nil {
 				t.Skipped++
-			} else if m, ok := message(rec); ok {
-				t.Add(m)
+			} else {
+				for _, m := range messages(rec) {
+					t.Add(m)
+				}
 			}
 		}
 		if errors.Is(readErr, io.EOF) {
@@ -81,36 +83,32 @@ func findFile(home, id string) (string, error) {
 	return matches[0], nil
 }
 
-// message keeps prose and tool calls of the main conversation only:
-// thinking, tool results, subagent and meta records are dropped.
-func message(rec record) (session.Message, bool) {
+// messages keeps prose and tool calls of the main conversation only, one per
+// part in order: thinking, tool results, subagent and meta records are dropped.
+func messages(rec record) []session.Message {
 	if rec.IsSidechain || rec.IsMeta || (rec.Type != "user" && rec.Type != "assistant") {
-		return session.Message{}, false
+		return nil
 	}
-	m := session.Message{Role: rec.Type, Time: rec.Timestamp}
+	at := rec.Timestamp
 
 	var s string
 	if json.Unmarshal(rec.Message.Content, &s) == nil {
-		m.Text = userText(rec.Type, s)
-		return m, m.Text != ""
+		return []session.Message{{Role: rec.Type, Time: at, Text: userText(rec.Type, s)}}
 	}
 	var parts []part
 	if json.Unmarshal(rec.Message.Content, &parts) != nil {
-		return m, false
+		return nil
 	}
-	var texts []string
+	var out []session.Message
 	for _, p := range parts {
 		switch p.Type {
 		case "text":
-			if t := userText(rec.Type, p.Text); t != "" {
-				texts = append(texts, t)
-			}
+			out = append(out, session.Message{Role: rec.Type, Time: at, Text: userText(rec.Type, p.Text)})
 		case "tool_use":
-			m.Tools = append(m.Tools, transcript.ToolLine(p.Name, p.Input))
+			out = append(out, session.Message{Role: rec.Type, Time: at, Tools: []string{transcript.ToolLine(p.Name, p.Input)}})
 		}
 	}
-	m.Text = strings.Join(texts, "\n\n")
-	return m, m.Text != "" || len(m.Tools) > 0
+	return out
 }
 
 // userText turns slash commands into "/name" and drops injected tagged text.

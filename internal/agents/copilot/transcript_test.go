@@ -39,14 +39,14 @@ func TestTranscript_Events(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Messages) != 2 || got.Skipped != 1 {
+	if len(got.Messages) != 3 || got.Skipped != 1 {
 		t.Fatalf("got %d messages, %d skipped: %+v", len(got.Messages), got.Skipped, got.Messages)
 	}
 	if got.Messages[0].Text != "review the app" {
 		t.Errorf("user = %+v", got.Messages[0])
 	}
-	if reply := got.Messages[1]; reply.Text != "Looks good." || strings.Join(reply.Tools, "|") != "view app.go" {
-		t.Errorf("reply = %+v", reply)
+	if tools, reply := got.Messages[1], got.Messages[2]; strings.Join(tools.Tools, "|") != "view app.go" || reply.Text != "Looks good." {
+		t.Errorf("tools = %+v, reply = %+v", tools, reply)
 	}
 }
 

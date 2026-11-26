@@ -41,7 +41,8 @@ func TestTranscript(t *testing.T) {
 	at := func(sec int) time.Time { return time.Date(2026, 11, 20, 14, 3, sec, 0, time.UTC) }
 	want := []session.Message{
 		{Role: "user", Time: at(0), Text: "make the tests pass"},
-		{Role: "assistant", Time: at(6), Text: "Running them now.\n\nAll green.", Tools: []string{"Bash go test ./..."}},
+		{Role: "assistant", Time: at(6), Text: "Running them now.", Tools: []string{"Bash go test ./..."}},
+		{Role: "assistant", Time: at(12), Text: "All green."},
 		{Role: "user", Time: time.Date(2026, 11, 20, 14, 5, 0, 0, time.UTC), Text: "/commit"},
 	}
 	if len(got.Messages) != len(want) {

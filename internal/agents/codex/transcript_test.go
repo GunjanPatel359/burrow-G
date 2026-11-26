@@ -35,15 +35,15 @@ func TestTranscript(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Messages) != 2 || got.Skipped != 1 {
+	if len(got.Messages) != 3 || got.Skipped != 1 {
 		t.Fatalf("got %d messages, %d skipped: %+v", len(got.Messages), got.Skipped, got.Messages)
 	}
-	user, reply := got.Messages[0], got.Messages[1]
+	user, tools, reply := got.Messages[0], got.Messages[1], got.Messages[2]
 	if user.Text != "add a test" || !user.Time.Equal(time.Date(2026, 11, 20, 14, 3, 0, 0, time.UTC)) {
 		t.Errorf("user = %+v", user)
 	}
-	if reply.Text != "Added it." || strings.Join(reply.Tools, "|") != "shell bash -lc go test ./...|apply_patch" {
-		t.Errorf("reply = %+v", reply)
+	if strings.Join(tools.Tools, "|") != "shell bash -lc go test ./...|apply_patch" || reply.Text != "Added it." {
+		t.Errorf("tools = %+v, reply = %+v", tools, reply)
 	}
 	md, _ := transcript.Markdown(got, time.Now())
 	for _, hidden := range []string{"DEVELOPER", "INJECTED", "HIDDEN", "TOOL OUTPUT"} {

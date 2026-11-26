@@ -23,10 +23,10 @@ func TestTranscript(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(got.Messages) != 3 || got.Skipped != 1 {
+	if len(got.Messages) != 4 || got.Skipped != 1 {
 		t.Fatalf("got %d messages, %d skipped: %+v", len(got.Messages), got.Skipped, got.Messages)
 	}
-	if m := got.Messages[1]; m.Text != "Running them now.\n\nAll green." || len(m.Tools) != 1 || m.Tools[0] != "Bash go test ./..." {
+	if m := got.Messages[1]; m.Text != "Running them now." || len(m.Tools) != 1 || m.Tools[0] != "Bash go test ./..." {
 		t.Errorf("assistant = %+v", m)
 	}
 }

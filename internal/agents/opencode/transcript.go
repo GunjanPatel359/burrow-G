@@ -79,16 +79,16 @@ func readV2(db *sql.DB, t *session.Transcript) error {
 			t.Skipped++
 			continue
 		}
-		m := session.Message{Role: kind, Time: millis(d.Time.Created), Text: d.Text}
+		at := millis(d.Time.Created)
+		t.Add(session.Message{Role: kind, Time: at, Text: d.Text})
 		for _, c := range d.Content {
 			switch c.Type {
 			case "text":
-				m.Text = join(m.Text, c.Text)
+				t.Add(session.Message{Role: kind, Time: at, Text: c.Text})
 			case "tool":
-				m.Tools = append(m.Tools, transcript.ToolLine(c.Name, c.State.Input))
+				t.Add(session.Message{Role: kind, Time: at, Tools: []string{transcript.ToolLine(c.Name, c.State.Input)}})
 			}
 		}
-		t.Add(m)
 	}
 	return rows.Err()
 }
@@ -101,13 +101,9 @@ func readV1(db *sql.DB, t *session.Transcript) error {
 	}
 	defer rows.Close()
 
-	var cur session.Message
-	var curID string
-	flush := func() {
-		if curID != "" {
-			t.Add(cur)
-		}
-	}
+	var curID, role string
+	var at time.Time
+	ok := false
 	for rows.Next() {
 		var id, msgRaw string
 		var partRaw sql.NullString
@@ -115,22 +111,20 @@ func readV1(db *sql.DB, t *session.Transcript) error {
 			return err
 		}
 		if id != curID {
-			flush()
-			curID, cur = id, session.Message{}
+			curID = id
 			var md struct {
 				Role string `json:"role"`
 				Time struct {
 					Created int64 `json:"created"`
 				} `json:"time"`
 			}
-			if json.Unmarshal([]byte(msgRaw), &md) != nil {
+			ok = json.Unmarshal([]byte(msgRaw), &md) == nil
+			if !ok {
 				t.Skipped++
-				curID = ""
-				continue
 			}
-			cur.Role, cur.Time = md.Role, millis(md.Time.Created)
+			role, at = md.Role, millis(md.Time.Created)
 		}
-		if curID == "" || !partRaw.Valid || (cur.Role != "user" && cur.Role != "assistant") {
+		if !ok || !partRaw.Valid || (role != "user" && role != "assistant") {
 			continue
 		}
 		var p v1Part
@@ -140,24 +134,16 @@ func readV1(db *sql.DB, t *session.Transcript) error {
 		}
 		switch {
 		case p.Type == "text" && !p.Synthetic:
-			cur.Text = join(cur.Text, p.Text)
+			t.Add(session.Message{Role: role, Time: at, Text: p.Text})
 		case p.Type == "tool":
-			cur.Tools = append(cur.Tools, transcript.ToolLine(p.Tool, p.State.Input))
+			t.Add(session.Message{Role: role, Time: at, Tools: []string{transcript.ToolLine(p.Tool, p.State.Input)}})
 		}
 	}
-	flush()
 	return rows.Err()
 }
 
 func (Source) StartCommand(dir, prompt string) []string {
 	return []string{"opencode", "--prompt", prompt}
-}
-
-func join(a, b string) string {
-	if a == "" || b == "" {
-		return a + b
-	}
-	return a + "\n\n" + b
 }
 
 func millis(ms int64) time.Time {
