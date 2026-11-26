@@ -193,11 +193,11 @@ func TestExportFailureKeepsEarlierExport(t *testing.T) {
 		return writesOne(s, w)
 	}}
 	m := exportModel(t, src)
-	m, cmd := press(m, eKey)
+	m, cmd := saveToFile(m)
 	m = deliver(m, cmd)
 
 	failing = true
-	m, cmd = press(m, eKey)
+	m, cmd = saveToFile(m)
 	m = deliver(m, cmd)
 
 	f, err := os.Open(filepath.Join(m.exports, "claude-aaa.jsonl"))

@@ -122,22 +122,28 @@ func findAgents(sources []session.Source, lookPath func(string) (string, error))
 	}
 }
 
-// prepareHandoff prepares continuing s in target: the folder is checked first, so
-// nothing is written for a session that can't be continued; then the
-// export and the handoff file (spec 0004, section 2).
+// prepareHandoff prepares continuing s in target: the folder is checked
+// first, so nothing is written for a session that can't be continued; then
+// the export and the handoff file (spec 0004, section 2).
 func prepareHandoff(src, target session.Source, s session.Session, exports, handoffs, version string, here bool) tea.Cmd {
 	return func() tea.Msg {
 		fail := func(err error) tea.Msg { return handedOffMsg{s: s, target: target.Name(), err: err} }
 		if err := session.CheckDir(s); err != nil {
 			return fail(err)
 		}
-		export := filepath.Join(exports, s.Agent+"-"+s.ID+".jsonl")
-		if _, err := exportSession(src, s, exports, export, version); err != nil {
+		export, err := fileFor(exports, s, ".jsonl")
+		if err != nil {
 			return fail(err)
 		}
-		path := filepath.Join(handoffs, s.Agent+"-"+s.ID+".md")
+		if _, err := exportSession(src, s, export, version); err != nil {
+			return fail(err)
+		}
+		path, err := fileFor(handoffs, s, ".md")
+		if err != nil {
+			return fail(err)
+		}
 		agent := agentlist.DisplayName(s.Agent)
-		if err := writeHandoff(export, handoffs, path, agent); err != nil {
+		if err := writeHandoff(export, path, agent); err != nil {
 			return fail(err)
 		}
 		argv := target.StartCommand(handoff.Prompt(path, agent, s.Title))
@@ -145,9 +151,9 @@ func prepareHandoff(src, target session.Source, s session.Session, exports, hand
 	}
 }
 
-// writeHandoff renders the export at from into a private file at path,
-// removed again if anything fails.
-func writeHandoff(from, dir, path, agent string) error {
+// writeHandoff renders the export at from into path, through writePrivate
+// like an export.
+func writeHandoff(from, path, agent string) error {
 	in, err := os.Open(from)
 	if err != nil {
 		return err
@@ -157,21 +163,9 @@ func writeHandoff(from, dir, path, agent string) error {
 	if err != nil {
 		return err
 	}
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return err
-	}
-	out, err := createPrivate(path)
-	if err != nil {
-		return err
-	}
-	err = handoff.Render(r, handoff.Options{Agent: agent, Record: from}, out)
-	if cerr := out.Close(); err == nil {
-		err = cerr
-	}
-	if err != nil {
-		os.Remove(path)
-	}
-	return err
+	return writePrivate(path, func(out io.Writer) error {
+		return handoff.Render(r, handoff.Options{Agent: agent, Record: from}, out)
+	})
 }
 
 // continueInTab starts the target agent in a new terminal tab.
