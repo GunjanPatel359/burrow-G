@@ -71,7 +71,7 @@ Per agent transcript source (all read only):
 | Copilot | `<dir of DBPath>/session-state/<id>/events.jsonl`; when absent, the `turns` table (`user_message`, `assistant_response`) | `user.message`, `assistant.message` events | `tool.execution_start` (`toolName`, `arguments`) | hook, usage, permission, notification, turn marker events |
 | Codex | the session's `rollout-*.jsonl` | `response_item` with payload `type: message`, role `user` / `assistant`, `input_text` / `output_text` parts | payload `type: function_call` (`name`, `arguments`) | `developer` and `system` roles, user messages that start with `<environment_context>` or `<user_instructions>`, reasoning items |
 
-Consecutive records with the same role are merged into one `Message` (Claude writes one reply as several records).
+Consecutive records with the same role are merged into one `Message` (Claude writes one reply as several records), except that text arriving after a tool call starts a new `Message`, so prose and tool lines keep the order they happened in. Readers pass each part of a record to `Transcript.Add` in order.
 
 `StartCommand` per agent (the `dir` argument is unused today and kept for agents that need a folder flag):
 
@@ -207,8 +207,8 @@ Ordered as a Tracer Bullet (no build approach is recorded for this project, so t
 
 ## Follow-up
 
-- [ ] Confirm Qoder's first prompt flag before T5 wires `StartCommand` (`qodercli` is not installed on the machine this was designed on).
-- [ ] Confirm `opencode --prompt` opens the interactive TUI with the prompt already sent (not only filled in), and that GNOME Terminal's `OpenTab` passes a 100 KB argument intact; if not, handoff for that path falls back to this terminal.
+- [x] Confirm Qoder's first prompt flag before T5 wires `StartCommand` (`qodercli` is not installed on the machine this was designed on). Settled from Qoder's CLI reference: `-i` / `--prompt-interactive` runs the prompt, then stays interactive.
+- [x] Confirm `opencode --prompt` opens the interactive TUI with the prompt already sent (not only filled in), and that GNOME Terminal's `OpenTab` passes a 100 KB argument intact; if not, handoff for that path falls back to this terminal. Both settled in verify: OpenCode (offline run) shows the prompt as the first message of a new session, and a real GNOME tab passed a 99,768 byte prompt byte for byte.
 - [ ] After the build, `/sync` should record in `internal/agents/AGENTS.md` that adding an agent now also means `transcript.go` (`Transcript`, `StartCommand`), and add `internal/transcript/` to the root `AGENTS.md` key files.
 - [ ] Revisit Option 2 (native import into OpenCode and Copilot) only if people ask for handed off history inside those agents' own pickers.
 - [ ] Lineage (recording that session B came from session A) was left out of v1; it needs a numbered patch and a way to learn the new session's id after the target saves it.
