@@ -365,6 +365,11 @@ var injectedTags = []string{"system-reminder", "local-command-caveat", "local-co
 // userText removes injected blocks and turns a slash command back into what
 // the user typed.
 func userText(s string, w *portable.Writer) string {
+	// A slash command is a turn that starts with the tag; prose that only
+	// mentions it is the user's own words.
+	if !strings.HasPrefix(strings.TrimSpace(s), "<command-name>") {
+		return withoutInjected(s, w)
+	}
 	if name := helpers.Between(s, "<command-name>", "</command-name>"); name != "" {
 		args := helpers.Between(s, "<command-args>", "</command-args>")
 		return strings.TrimSpace(name + " " + args)
@@ -373,21 +378,28 @@ func userText(s string, w *portable.Writer) string {
 }
 
 // withoutInjected removes the blocks the agent injected, counting each.
-// Compaction summaries carry them too.
+// Compaction summaries carry them too. Only a whole block that starts a
+// line counts: a tag mentioned in the middle of a sentence, or never
+// closed, is the user writing about it, and stays.
 func withoutInjected(s string, w *portable.Writer) string {
 	for _, tag := range injectedTags {
 		open, close := "<"+tag+">", "</"+tag+">"
-		for {
-			start := strings.Index(s, open)
+		for from := 0; ; {
+			start := strings.Index(s[from:], open)
 			if start < 0 {
 				break
 			}
+			start += from
 			end := strings.Index(s[start:], close)
 			if end < 0 {
-				s = s[:start] // unterminated: the rest is the block
-			} else {
-				s = s[:start] + s[start+end+len(close):]
+				break // never closed: not a block
 			}
+			if start > 0 && s[start-1] != '\n' {
+				from = start + len(open) // mid-sentence: leave it
+				continue
+			}
+			s = s[:start] + s[start+end+len(close):]
+			from = start
 			w.Drop("injected text")
 		}
 	}

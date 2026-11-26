@@ -1,8 +1,11 @@
 package tui
 
 import (
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -41,52 +44,64 @@ func bookmark(store *db.DB, s session.Session, on bool) tea.Cmd {
 // export writes a session to <dir>/<agent>-<id>.jsonl in the portable format.
 func export(src session.Source, s session.Session, dir, version string) tea.Cmd {
 	return func() tea.Msg {
-		path := filepath.Join(dir, s.Agent+"-"+s.ID+".jsonl")
-		_, err := exportSession(src, s, dir, path, version)
+		path, err := fileFor(dir, s, ".jsonl")
+		if err == nil {
+			_, err = exportSession(src, s, path, version)
+		}
 		return exportedMsg{agent: s.Agent, title: s.Title, path: path, err: err}
 	}
 }
 
-// exportSession writes the export to a private file. A failed export
-// removes the file, so a file in the folder is always a whole session.
-func exportSession(src session.Source, s session.Session, dir, path, version string) (portable.End, error) {
-	if err := os.MkdirAll(dir, 0o700); err != nil {
-		return portable.End{}, err
+// fileFor is <dir>/<agent>-<id><ext>. Ids come from agents' own files, so
+// one that isn't a plain name is refused rather than allowed to lead out of
+// dir.
+func fileFor(dir string, s session.Session, ext string) (string, error) {
+	name := s.Agent + "-" + s.ID
+	if s.ID == "" || s.ID == "." || s.ID == ".." || strings.ContainsAny(name, "/\\\x00") {
+		return "", fmt.Errorf("session id %q can't be a file name", s.ID)
 	}
-	f, err := createPrivate(path)
-	if err != nil {
-		return portable.End{}, err
-	}
-	w := portable.NewWriter(f, version)
-	err = src.Export(s, w)
+	return filepath.Join(dir, name+ext), nil
+}
+
+// exportSession writes the export of s to path.
+func exportSession(src session.Source, s session.Session, path, version string) (portable.End, error) {
 	var end portable.End
-	if err == nil {
+	err := writePrivate(path, func(f io.Writer) error {
+		w := portable.NewWriter(f, version)
+		if err := src.Export(s, w); err != nil {
+			return err
+		}
+		var err error
 		end, err = w.Close()
-	}
-	if cerr := f.Close(); err == nil {
-		err = cerr
-	}
-	if err != nil {
-		os.Remove(path)
-	}
+		return err
+	})
 	return end, err
 }
 
-// createPrivate opens path for writing as mode 600. An existing file is
-// narrowed to 600 before it is emptied, so old content is never readable
-// by others even for a moment.
-func createPrivate(path string) (*os.File, error) {
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0o600)
+// writePrivate writes path, readable only by its owner, in its folder
+// (mode 700). It writes a hidden temp file beside it and renames it into
+// place only once write succeeded, so path is always whole: a failure,
+// a quit midway or two writes at once never leave half a file, and a
+// failed rewrite keeps the old one.
+func writePrivate(path string, write func(io.Writer) error) error {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return err
+	}
+	if err := os.Chmod(dir, 0o700); err != nil {
+		return err
+	}
+	tmp, err := os.CreateTemp(dir, "."+filepath.Base(path)+".*") // mode 600
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if err := f.Chmod(0o600); err != nil {
-		f.Close()
-		return nil, err
+	defer os.Remove(tmp.Name()) // a no-op once renamed
+	err = write(tmp)
+	if cerr := tmp.Close(); err == nil {
+		err = cerr
 	}
-	if err := f.Truncate(0); err != nil {
-		f.Close()
-		return nil, err
+	if err != nil {
+		return err
 	}
-	return f, nil
+	return os.Rename(tmp.Name(), path)
 }

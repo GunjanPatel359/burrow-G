@@ -2,6 +2,7 @@ package tui
 
 import (
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"slices"
@@ -163,5 +164,61 @@ func TestExportKeyTypedWhileSearching(t *testing.T) {
 func TestExportKeyHint(t *testing.T) {
 	if lines := keyLines(false, theme.Unicode); !slices.Contains(lines, "e export") {
 		t.Errorf("key list %q has no %q", lines, "e export")
+	}
+}
+
+// A failed re-export must not take the earlier good export with it.
+func TestExportFailureKeepsEarlierExport(t *testing.T) {
+	failing := false
+	src := fakeSource{name: "claude", export: func(s session.Session, w *portable.Writer) error {
+		if failing {
+			w.Header(portable.Header{Agent: s.Agent, ID: s.ID})
+			return errors.New("disk full")
+		}
+		return writesOne(s, w)
+	}}
+	m := exportModel(t, src)
+	m, cmd := press(m, eKey)
+	m = deliver(m, cmd)
+
+	failing = true
+	m, cmd = press(m, eKey)
+	m = deliver(m, cmd)
+
+	f, err := os.Open(filepath.Join(m.exports, "claude-aaa.jsonl"))
+	if err != nil {
+		t.Fatalf("the earlier export is gone: %v", err)
+	}
+	defer f.Close()
+	r, err := portable.NewReader(f)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for {
+		if _, err := r.Next(); err != nil {
+			if !errors.Is(err, io.EOF) {
+				t.Errorf("the earlier export was damaged: %v", err)
+			}
+			break
+		}
+	}
+	if left, _ := os.ReadDir(m.exports); len(left) != 1 {
+		t.Errorf("exports folder holds %d files, want only the export", len(left))
+	}
+}
+
+// An id from an agent's data must not lead the export out of its folder.
+func TestExportRefusesIDThatLeavesFolder(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "a", "b", "exports")
+	src := fakeSource{name: "codex", export: writesOne}
+	for _, id := range []string{"x/../../../victim", `x\y`, "..", "."} {
+		msg := export(src, session.Session{Agent: "codex", ID: id}, dir, "v")().(exportedMsg)
+		if msg.err == nil {
+			t.Errorf("id %q was exported", id)
+		}
+	}
+	if _, err := os.Stat(filepath.Join(root, "victim.jsonl")); !os.IsNotExist(err) {
+		t.Error("a file was written outside the exports folder")
 	}
 }
