@@ -2,9 +2,11 @@ package claude
 
 import (
 	"bytes"
+	"encoding/json"
 	"errors"
 	"io"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strings"
 	"testing"
@@ -140,4 +142,84 @@ func TestExportRefusesPathID(t *testing.T) {
 			t.Errorf("Export(%q) succeeded, want an error", id)
 		}
 	}
+}
+
+// sameRecords compares records without their times.
+func sameRecords(t *testing.T, got, want []portable.Record) {
+	t.Helper()
+	for i := range got {
+		got[i].Time = time.Time{}
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("records:\n%s\nwant:\n%s", dump(got), dump(want))
+	}
+}
+
+func dump(records []portable.Record) string {
+	var b strings.Builder
+	for _, r := range records {
+		data, _ := json.Marshal(r)
+		b.Write(data)
+		b.WriteByte('\n')
+	}
+	return b.String()
+}
+
+func TestExportGroupsParallelCalls(t *testing.T) {
+	_, _, records, _ := exportFile(t, "testdata/export/parallel.jsonl", "par")
+
+	sameRecords(t, records, []portable.Record{
+		{Kind: "message", Role: "user", Parts: []portable.Part{{Type: "text", Text: "go"}}},
+		{Kind: "message", Role: "assistant", Model: "claude-test", Parts: []portable.Part{
+			{Type: "tool_call", ID: "ta", Name: "Bash", Input: json.RawMessage(`{"command":"ls"}`)},
+			{Type: "tool_call", ID: "tb", Name: "Bash", Input: json.RawMessage(`{"command":"pwd"}`)},
+		}},
+		{Kind: "message", Role: "user", Parts: []portable.Part{
+			{Type: "tool_result", ID: "ta", Text: "outA"},
+			{Type: "tool_result", ID: "tb", Text: "outB"},
+		}},
+		{Kind: "message", Role: "assistant", Model: "claude-test", Parts: []portable.Part{{Type: "text", Text: "done"}}},
+	})
+}
+
+func TestExportContent(t *testing.T) {
+	_, _, records, end := exportFile(t, "testdata/export/content.jsonl", "con")
+
+	sameRecords(t, records, []portable.Record{
+		{Kind: "message", Role: "user", Parts: []portable.Part{{Type: "text", Text: "real words"}}},
+		{Kind: "message", Role: "user", Parts: []portable.Part{{Type: "text", Text: "/review 42"}}},
+		{Kind: "message", Role: "assistant", Model: "claude-test", Parts: []portable.Part{
+			{Type: "reasoning", Text: "plan"},
+			{Type: "text", Text: "hi"},
+			{Type: "tool_call", ID: "t1", Name: "Bash", Input: json.RawMessage(`{"command":"ls"}`)},
+		}},
+		{Kind: "message", Role: "user", Parts: []portable.Part{
+			{Type: "tool_result", ID: "t1", Text: "ok"},
+			{Type: "image", ID: "t1", MediaType: "image/png", Data: "iVBO"},
+		}},
+		// Cut off mid call: the call stays, no result is made up.
+		{Kind: "message", Role: "assistant", Model: "claude-test", Parts: []portable.Part{
+			{Type: "tool_call", ID: "t2", Name: "Bash", Input: json.RawMessage(`{"command":"pwd"}`)},
+		}},
+	})
+	if end.Dropped["thinking without text"] != 1 {
+		t.Errorf("thinking without text = %d, want 1", end.Dropped["thinking without text"])
+	}
+	if end.Dropped["injected text"] != 3 {
+		t.Errorf("injected text = %d, want 3", end.Dropped["injected text"])
+	}
+}
+
+func TestExportCompactionRecord(t *testing.T) {
+	_, _, records, _ := exportFile(t, "testdata/export/segments.jsonl", "seg")
+
+	for _, r := range records {
+		if r.Kind == "compaction" {
+			if r.Role != "" || len(r.Parts) != 0 || r.Text != "Summary text" {
+				t.Errorf("compaction record = %+v", r)
+			}
+			return
+		}
+	}
+	t.Error("no compaction record")
 }
