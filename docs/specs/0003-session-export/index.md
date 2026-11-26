@@ -122,9 +122,9 @@ Rule: inside each agent's `Export` method, use the agent's own export when it gi
 |---|---|---|
 | OpenCode | native: `opencode session export --standalone <id>` (JSON), converted | step 2 |
 | Claude Code | own reader of `~/.claude/projects/*/<id>.jsonl` (its `/export` is plain text, only inside a running session) | step 1 |
-| Qoder | own reader (JSONL close to Claude's) | `ErrUnsupported`, follow up |
-| Codex | own reader of rollout files | `ErrUnsupported`, follow up |
-| Copilot CLI | own reader, until it ships a structured export | `ErrUnsupported`, follow up |
+| Qoder | own reader (JSONL close to Claude's) | step 3 |
+| Codex | own reader of rollout files | step 3 |
+| Copilot CLI | own reader, until it ships a structured export | step 3 |
 
 When an agent later ships a structured export, its package switches to it; nothing outside the package changes.
 
@@ -156,27 +156,43 @@ A session that can't be found returns an error naming the id; the file is locate
 
 ### 7. Where you use it
 
-- **CLI**: `burrow-g export <id> [-o file]`. The id may be a prefix, found like `resume` finds it. Without `-o` the file goes to stdout. With `-o` it is created mode 600 (an existing file is narrowed to 600 first). A one line report goes to stderr.
-- **TUI and command bar** (step 3): `x` on a session, and an `export` command, write to `~/.local/share/burrow-g/exports/<agent>-<id>.jsonl` (folder mode 700) and report in the status line.
-- Reports follow `docs/design.md` voice:
-  - done: `exported 6716 records to "~/.local/share/burrow-g/exports/claude-3cbaaae5.jsonl"` (dropped counts follow on stderr in the CLI)
-  - not yet: `error: export isn't supported for Copilot CLI yet` (the CLI prints it with its usual `burrow-g: ` prefix instead of `error: `)
+Only from the TUI for now: there is no `burrow-g export` command and no command bar entry yet (see Follow-up).
+
+- **`e` on a session** exports it to `~/.local/share/burrow-g/exports/<agent>-<id>.jsonl`. The folder is created mode 700, the file mode 600 (an existing file is narrowed to 600 before it is emptied). The export runs as a background job (`internal/tui/commands.go`), never inside `Update`, with the busy spinner while it runs.
+- If the export fails, the half written file is removed, so a file in the folder is always a whole session.
+- The key comes from `keys.go` like every other binding (`e`, help `export`), so the status line hints and the help command's key list show it.
+- Status line, in `docs/design.md` voice:
+  - busy: `exporting` + `t.Glyph.Ellipsis`
+  - done: `exported 6716 records to "~/.local/share/burrow-g/exports/claude-3cbaaae5.jsonl"` (the path shortened with `~` like the details box)
+  - not yet: `error: export isn't supported for Copilot CLI yet` (the agent's display name)
   - failure: `error: <message>`
 
 ### Canonical pattern
 
 ```go
-// cmd/burrow-g: export one session to out.
-func exportSession(src session.Source, s session.Session, out io.Writer) (portable.End, error) {
-	w := portable.NewWriter(out)
-	if err := src.Export(s, w); err != nil {
-		return portable.End{}, fmt.Errorf("export %s: %w", s.Key(), err)
+// internal/tui: export one session to a private file, as a job.
+func exportSession(src session.Source, s session.Session, path, version string) (portable.End, error) {
+	f, err := createPrivate(path) // 600, existing file narrowed first
+	if err != nil {
+		return portable.End{}, err
 	}
-	return w.Close()
+	w := portable.NewWriter(f, version)
+	err = src.Export(s, w)
+	var end portable.End
+	if err == nil {
+		end, err = w.Close()
+	}
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		os.Remove(path) // never leave half a session behind
+	}
+	return end, err
 }
 ```
 
-`Close` returns the `End` it wrote, so the caller can report counts.
+`Close` returns the `End` it wrote, so the status line can report the count.
 
 ## Consequences
 
@@ -187,13 +203,13 @@ func exportSession(src session.Source, s session.Session, out io.Writer) (portab
 
 ## Rollout
 
-1. `internal/portable` with tests; `Source.Export` and `ErrUnsupported`; Claude reader with fixtures; every other agent returns `ErrUnsupported`; `burrow-g export`. README and CHANGELOG.
+1. `internal/portable` with tests; `Source.Export` and `ErrUnsupported`; Claude reader with fixtures; every other agent returns `ErrUnsupported`; the TUI `e` key. README and CHANGELOG.
 2. OpenCode native route with a `testdata/` export file.
-3. TUI `x` key and the `export` command.
-4. Follow ups, one PR each: Qoder, Codex, Copilot readers.
+3. Qoder, Codex, Copilot readers, one commit each.
 
 ## Follow-up
 
+- [ ] A `burrow-g export <id> [-o file]` command and a command bar `export` entry, when moving sessions between machines needs the shell (decided 2026-11-26: TUI only for now).
 - [ ] Spec 0004: import a portable file into an agent (OpenCode through `opencode session import`, others to be decided), with tool name mapping.
 - [ ] Markdown rendering of a portable file, for reading and sharing, if people ask for it.
 - [ ] PR #24 (spec 0002, Markdown export and handoff) is not built on: this spec has its own readers inside each agent's `Export`. If handoff comes back, it renders from `Export`, so each agent keeps one reader.
