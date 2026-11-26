@@ -237,3 +237,21 @@ func TestExportKeepsAssistantTags(t *testing.T) {
 		t.Errorf("injected text = %d, want 0", end.Dropped["injected text"])
 	}
 }
+
+// A prompt that talks about the tags is the user's own words, kept whole.
+func TestExportKeepsTagMentionsInProse(t *testing.T) {
+	_, _, records, end := exportFile(t, "testdata/export/prose.jsonl", "prose")
+	var got []string
+	for _, r := range records {
+		for _, p := range r.Parts {
+			got = append(got, p.Text)
+		}
+	}
+	want := []string{
+		"Please strip <system-reminder> blocks from user text, and keep everything after it.",
+		"The <command-name> tag holds a slash command; keep this sentence.",
+	}
+	if !slices.Equal(got, want) || end.Dropped["injected text"] != 0 {
+		t.Errorf("texts = %q, injected %d; want them unchanged", got, end.Dropped["injected text"])
+	}
+}

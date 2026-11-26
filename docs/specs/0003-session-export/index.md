@@ -141,7 +141,7 @@ Facts from real files (Claude Code 2.1.332), each covered by a fixture:
 7. `thinking` blocks with empty `thinking` text (signature only) are dropped and counted; with text they become `reasoning` parts.
 8. Lines that are not JSON are skipped and counted (`unreadable line`), never fatal.
 9. Header title and `dir` come from the same `parseFile` that `List` uses (`/rename` sidecar, then the first `ai-title`, then the first prompt), so an export and the list never disagree.
-10. **Injected text in user turns.** Whole injected blocks are removed by tag name: `<system-reminder>`, `<local-command-caveat>`, `<local-command-stdout>`, and lines with `isMeta: true` (counted as `injected text`). The real text around them stays. A turn left with no text and no tool result is dropped. A slash command (`<command-name>/foo</command-name>` with `<command-args>`) is kept as the user's text `/foo <args>`, because that is what the user typed.
+10. **Injected text in user turns.** Whole injected blocks are removed by tag name: `<system-reminder>`, `<local-command-caveat>`, `<local-command-stdout>`, `<local-command-stderr>`, and lines with `isMeta: true` (counted as `injected text`). Only a complete block that starts the text or a line counts: a tag mentioned mid-sentence, or never closed, is the user writing about it and stays. The real text around a block stays. A turn left with no text and no tool result is dropped. A turn that starts with a slash command (`<command-name>/foo</command-name>` with `<command-args>`) is kept as the user's text `/foo <args>`, because that is what the user typed; prose that mentions the tag stays as written.
 11. **Images in a tool result** are kept: an `image` part right after its `tool_result` in the same record, with the same `id`, so an importer can put it back inside the result.
 
 A session that can't be found returns an error naming the id; the file is located the way `List` found it (`projects/*/<id>.jsonl`).
@@ -189,8 +189,9 @@ Copilot has no export command, and `session-store.db` keeps only each turn's wor
 
 Only from the TUI for now: there is no `burrow-g export` command and no command bar entry yet (see Follow-up).
 
-- **`e` on a session** exports it to `~/.local/share/burrow-g/exports/<agent>-<id>.jsonl`. The folder is created mode 700, the file mode 600 (an existing file is narrowed to 600 before it is emptied). The export runs as a background job (`internal/tui/commands.go`), never inside `Update`, with the busy spinner while it runs.
-- If the export fails, the half written file is removed, so a file in the folder is always a whole session.
+- **`e` on a session** exports it to `~/.local/share/burrow-g/exports/<agent>-<id>.jsonl`. The folder is mode 700, the file mode 600. The export runs as a background job (`internal/tui/commands.go`), never inside `Update`, with the busy spinner while it runs.
+- The export is written to a hidden temp file beside it and renamed into place only when it succeeded, so a file in the folder is always a whole session: a failure, quitting midway, or two exports at once never leave half a file, and a failed re-export keeps the earlier one.
+- An id that isn't a plain file name (a `/`, `\`, `..`) is refused, since ids come from the agents' own data.
 - The key comes from `keys.go` like every other binding (`e`, help `export`), so the status line hints and the help command's key list show it.
 - Status line, in `docs/design.md` voice:
   - busy: `exporting` + `t.Glyph.Ellipsis`
