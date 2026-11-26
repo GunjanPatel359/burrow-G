@@ -2,7 +2,7 @@
 {"type":"assistant","uuid":"a1","parentUuid":"u1","isSidechain":false,"timestamp":"2026-10-26T04:53:21Z","cwd":"/tmp/p","sessionId":"seg","message":{"id":"m1","role":"assistant","model":"qoder-test","content":[{"type":"thinking","thinking":"plan","signature":""},{"type":"text","text":"one"}]}}
 {"type":"active-leaf","sessionId":"seg","leafUuid":"a1","explicit":false,"timestamp":1793000002000}
 {"type":"system","subtype":"compact_boundary","uuid":"b1","parentUuid":null,"logicalParentUuid":"a1","isCompactSummary":true,"isSidechain":false,"timestamp":"2026-10-26T04:53:23Z","content":"Conversation compacted","level":"info"}
-{"type":"user","uuid":"s1","parentUuid":"b1","isSidechain":false,"isCompactSummary":true,"isVisibleInTranscriptOnly":true,"timestamp":"2026-10-26T04:53:24Z","message":{"role":"user","content":[{"type":"text","text":"Summary text"}]}}
+{"type":"user","uuid":"s1","parentUuid":"b1","isSidechain":false,"isCompactSummary":true,"isVisibleInTranscriptOnly":true,"timestamp":"2026-10-26T04:53:24Z","message":{"role":"user","content":[{"type":"text","text":"Summary text\n<system-reminder>injected</system-reminder>"}]}}
 {"type":"user","uuid":"u2","parentUuid":"s1","isSidechain":false,"timestamp":"2026-10-26T04:53:25Z","cwd":"/tmp/p","sessionId":"seg","message":{"role":"user","content":"second"}}
 {"type":"assistant","uuid":"a2","parentUuid":"u2","isSidechain":false,"timestamp":"2026-10-26T04:53:26Z","cwd":"/tmp/p","sessionId":"seg","message":{"id":"m2","role":"assistant","model":"qoder-test","content":[{"type":"text","text":"two"}]}}
 {"type":"runtime-config","sessionId":"seg","model":"qoder-test","timestamp":1793000007000}
