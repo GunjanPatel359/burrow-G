@@ -72,6 +72,22 @@ func (Source) Delete(s session.Session, trashDir string) error {
 	return errors.New("delete not supported for copilot yet")
 }
 
-func (Source) Export(s session.Session, w *portable.Writer) error {
-	return session.ErrUnsupported
+// Export reads the session's event log itself: Copilot has no export
+// command. The reader is in export.go.
+func (c Source) Export(s session.Session, w *portable.Writer) error {
+	path, err := c.eventsFile(s.ID)
+	if err != nil {
+		return err
+	}
+	h, err := c.header(s.ID)
+	if err != nil {
+		return err
+	}
+	if h.Created, h.Updated, err = times(path); err != nil {
+		return err
+	}
+	if err := w.Header(h); err != nil {
+		return err
+	}
+	return writeEvents(path, w)
 }

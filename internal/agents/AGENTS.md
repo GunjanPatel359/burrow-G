@@ -11,7 +11,7 @@ Each folder here reads one agent CLI's sessions and turns them into the shared `
 | `internal/session/session.go` | `Session`, `Source` interface, `ErrMissing`, `Sort` |
 | `claude/`, `qoder/` | JSONL files under `~/.claude/projects/*/` and `~/.qoder/projects/*/`; `parse.go` reads title and folder |
 | `opencode/source.go` | `~/.local/share/opencode/opencode.db`, table `session_v2` or `session` |
-| `copilot/source.go` | `~/.copilot/session-store.db`, table `sessions` |
+| `copilot/source.go` | `~/.copilot/session-store.db`, table `sessions`; `Export` reads `~/.copilot/session-state/<id>/events.jsonl` |
 | `codex/source.go` | `~/.codex/sessions/**/rollout-*.jsonl` plus `session_index.jsonl` thread names |
 
 ## Conventions

@@ -1,0 +1,15 @@
+{"type":"session.start","id":"e1","parentId":null,"timestamp":"2026-11-04T10:00:00Z","data":{"sessionId":"cp1","copilotVersion":"1.0.80"}}
+{"type":"system.message","id":"e2","parentId":"e1","timestamp":"2026-11-04T10:00:01Z","data":{"role":"system","content":"You are the GitHub Copilot CLI."}}
+{"type":"user.message","id":"e3","parentId":"e2","timestamp":"2026-11-04T10:00:02Z","data":{"content":"explain","transformedContent":"<current_datetime>2026-11-04</current_datetime>\n\nexplain","attachments":[{"type":"directory","path":"/tmp/x/app","displayName":"@app/"}]}}
+{"type":"assistant.turn_start","id":"e4","parentId":"e3","timestamp":"2026-11-04T10:00:03Z","data":{"turnId":"0"}}
+{"type":"assistant.message","id":"e5","parentId":"e4","timestamp":"2026-11-04T10:00:04Z","data":{"model":"gpt-test","content":"Looking.","reasoningText":"plan","toolRequests":[{"toolCallId":"t1","name":"view","arguments":{"path":"/a"},"type":"function"},{"toolCallId":"t2","name":"task","arguments":{"prompt":"x"},"type":"function"}]}}
+{"type":"tool.execution_start","id":"e6","parentId":"e5","timestamp":"2026-11-04T10:00:05Z","data":{"toolCallId":"t1","toolName":"view","arguments":{"path":"/a"}}}
+{"type":"assistant.message","id":"e7","parentId":"e6","timestamp":"2026-11-04T10:00:06Z","data":{"model":"gpt-test","content":"sub work","parentToolCallId":"t2","toolRequests":[]}}
+{"type":"tool.execution_complete","id":"e8","parentId":"e7","timestamp":"2026-11-04T10:00:07Z","data":{"toolCallId":"s1","parentToolCallId":"t2","success":true,"result":{"content":"sub out"}}}
+{"type":"user.message","id":"e9","parentId":"e8","timestamp":"2026-11-04T10:00:08Z","data":{"content":"sub prompt","parentAgentTaskId":"p1"}}
+{"type":"tool.execution_complete","id":"e10","parentId":"e9","timestamp":"2026-11-04T10:00:09Z","data":{"toolCallId":"t1","success":true,"result":{"content":"a.py","detailedContent":"a.py (12 lines)"}}}
+{"type":"tool.execution_complete","id":"e11","parentId":"e10","timestamp":"2026-11-04T10:00:10Z","data":{"toolCallId":"t2","success":false,"result":null,"error":{"message":"denied","code":"failure"}}}
+{"type":"assistant.message","id":"e12","parentId":"e11","timestamp":"2026-11-04T10:00:11Z","data":{"model":"gpt-test","content":"Done.","reasoningOpaque":"zzz","toolRequests":[]}}
+{"type":"subagent.failed","id":"e12b","parentId":"e12","timestamp":"2026-11-04T10:00:11Z","data":{"toolCallId":"t2","agentName":"task","error":"No response generated"}}
+{"type":"assistant.turn_end","id":"e13","parentId":"e12","timestamp":"2026-11-04T10:00:12Z","data":{"turnId":"0"}}
+{"type":"session.shutdown","id":"e14","parentId":"e13","timestamp":"2026-11-04T10:00:13Z","data":{"shutdownType":"routine"}}

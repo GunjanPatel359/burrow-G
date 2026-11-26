@@ -166,6 +166,16 @@ Codex has no export command; `codex/export.go` reads the rollout file. **Unteste
 4. `developer` and `system` messages, and user text that starts with `<environment_context>`, `<user_instructions>` or `# AGENTS.md instructions`, are Codex's own and dropped as `injected text`.
 5. Grouping: assistant side items make one reply; tool outputs collect after it; the next assistant side item after outputs starts a new reply, a user message ends it.
 
+### 5c. Copilot CLI reader (step 3)
+
+Copilot has no export command, and `session-store.db` keeps only each turn's words, so `copilot/export.go` reads `session-state/<id>/events.jsonl` (seen in 3 local sessions, Copilot CLI 1.0.80):
+
+1. Title and folder come from the `sessions` row `List` shows; header times from the first and last event.
+2. `user.message` → its `content` (not `transformedContent`, which adds injected text like `<current_datetime>`); `attachments` are path references, dropped as `attached file`. `system.message` → `injected text`.
+3. `assistant.message` → one reply: `reasoningText` as reasoning (only `reasoningOpaque` → `thinking without text`), `content` as text, each of `toolRequests` as a tool call (`toolCallId`, `name`, `arguments`). `tool.execution_complete` → a tool result (`result.content`, or the error with `error: true`; `error` is `{message}` on tools and plain text on `subagent.failed`).
+4. Subagents write into the same log, marked with `parentToolCallId`, or `parentAgentTaskId` on their prompt: dropped as `sidechain line`, while the parent's call and result stay in.
+5. A session with no `events.jsonl` (Copilot never wrote one; its `turns` are empty too) exports as a header with no records.
+
 ### 6. OpenCode native route (step 2)
 
 - `opencode.Source` gains a `Run func(name string, args ...string) ([]byte, error)` field; `main.go` sets it to an `exec` wrapper. Tests set it to return a saved export file from `testdata/`. Nil `Run` means `ErrUnsupported`, so a reader built without it still compiles and lists.
