@@ -1,6 +1,8 @@
 {"type":"permission-mode","mode":"default"}
+{"type":"runtime-config","timestamp":1794027330689,"config":{}}
 {"type":"user","timestamp":"2026-11-20T14:03:00Z","cwd":"/tmp/proj","message":{"role":"user","content":"make the tests pass"}}
 {"type":"assistant","timestamp":"2026-11-20T14:03:05Z","message":{"role":"assistant","content":[{"type":"thinking","thinking":"SECRET THOUGHTS"}]}}
+{"type":"active-leaf","timestamp":1794027413381,"leafUuid":"x"}
 {"type":"assistant","timestamp":"2026-11-20T14:03:06Z","message":{"role":"assistant","content":[{"type":"text","text":"Running them now."}]}}
 {"type":"assistant","timestamp":"2026-11-20T14:03:07Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"go test ./...","description":"run tests"}}]}}
 {"type":"user","timestamp":"2026-11-20T14:03:09Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"TOOL OUTPUT"}]}}

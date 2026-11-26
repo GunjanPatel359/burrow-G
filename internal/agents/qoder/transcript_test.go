@@ -1,9 +1,11 @@
 package qoder
 
 import (
+	"encoding/json"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
@@ -35,5 +37,22 @@ func TestStartCommand(t *testing.T) {
 	got := (Source{}).StartCommand("/tmp", "hi")
 	if len(got) != 3 || got[0] != "qodercli" || got[1] != "-i" || got[2] != "hi" {
 		t.Errorf("got %q", got)
+	}
+}
+
+func TestStamp(t *testing.T) {
+	tests := []struct {
+		raw  string
+		want time.Time
+	}{
+		{`"2026-11-20T14:03:00Z"`, time.Date(2026, 11, 20, 14, 3, 0, 0, time.UTC)},
+		{`1794027330689`, time.UnixMilli(1794027330689)},
+		{`{"odd":true}`, time.Time{}},
+		{``, time.Time{}},
+	}
+	for _, tt := range tests {
+		if got := stamp(json.RawMessage(tt.raw)); !got.Equal(tt.want) {
+			t.Errorf("stamp(%s) = %v, want %v", tt.raw, got, tt.want)
+		}
 	}
 }

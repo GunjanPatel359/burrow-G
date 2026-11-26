@@ -17,10 +17,10 @@ import (
 )
 
 type record struct {
-	Type        string    `json:"type"`
-	Timestamp   time.Time `json:"timestamp"`
-	IsSidechain bool      `json:"isSidechain"`
-	IsMeta      bool      `json:"isMeta"`
+	Type        string          `json:"type"`
+	Timestamp   json.RawMessage `json:"timestamp"`
+	IsSidechain bool            `json:"isSidechain"`
+	IsMeta      bool            `json:"isMeta"`
 	Message     struct {
 		Content json.RawMessage `json:"content"`
 	} `json:"message"`
@@ -89,7 +89,7 @@ func messages(rec record) []session.Message {
 	if rec.IsSidechain || rec.IsMeta || (rec.Type != "user" && rec.Type != "assistant") {
 		return nil
 	}
-	at := rec.Timestamp
+	at := stamp(rec.Timestamp)
 
 	var s string
 	if json.Unmarshal(rec.Message.Content, &s) == nil {
@@ -117,4 +117,18 @@ func userText(role, s string) string {
 		return s
 	}
 	return prompt(strings.TrimSpace(s))
+}
+
+// stamp reads a record's time. Qoder writes a string on messages but epoch
+// milliseconds on bookkeeping records, so a number must not fail the line.
+func stamp(raw json.RawMessage) time.Time {
+	var t time.Time
+	if json.Unmarshal(raw, &t) == nil {
+		return t
+	}
+	var ms int64
+	if json.Unmarshal(raw, &ms) == nil {
+		return time.UnixMilli(ms)
+	}
+	return time.Time{}
 }
