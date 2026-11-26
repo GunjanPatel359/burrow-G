@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Export: press `e` (or run `export`) to save a session as Markdown under
+  `~/.local/share/burrow-g/exports/`, or run `burrow-g export <id> [-o file]`. Works for all
+  five agents and leaves out thinking, tool outputs and subagent work.
+- Handoff: press `t` (or run `handoff [@agent:<name>]`) to continue a session in any
+  installed agent, in the same folder, with the conversation as its first prompt; or run
+  `burrow-g handoff <id> <agent>`. Known secret shapes are masked, long sessions are trimmed
+  to 100 KB, and a one line report says what was sent.
+
 ## v0.0.2 — 2026-11-23
 
 ### Added

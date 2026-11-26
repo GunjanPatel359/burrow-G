@@ -47,17 +47,21 @@ of them — in the right folder, with the right command.
 - **Search** — `/` filters by title or folder.
 - **Resume anywhere** — `enter` opens the session in a **new terminal tab** and keeps burrow-G
   open; `o` resumes it right here. It always starts in the session's original folder.
+- **Export** — `e` saves any session as a Markdown transcript; `burrow-g export <id>` prints it.
+- **Hand off** — `t` continues a session in another agent (or the same one), in the same
+  folder, with the old conversation as its first prompt. Secrets with known shapes are
+  masked first, and long sessions are trimmed to 100 KB.
 - **Safe** — agents' files are only ever read, never changed.
 
 ## Supported agents
 
-| Agent | Reads from | Resumes with |
-|---|---|---|
-| Claude Code | `~/.claude/projects/` | `claude --resume <id>` |
-| Qoder | `~/.qoder/projects/` | `qodercli --resume <id>` |
-| OpenCode | `~/.local/share/opencode/opencode.db` (read-only) | `opencode --session <id>` |
-| Copilot CLI | `~/.copilot/session-store.db` (read-only) | `copilot --resume <id>` |
-| Codex | `~/.codex/sessions/` | `codex resume <id>` |
+| Agent | Reads from | Resumes with | Handoff starts it with |
+|---|---|---|---|
+| Claude Code | `~/.claude/projects/` | `claude --resume <id>` | `claude <prompt>` |
+| Qoder | `~/.qoder/projects/` | `qodercli --resume <id>` | `qodercli -i <prompt>` |
+| OpenCode | `~/.local/share/opencode/opencode.db` (read-only) | `opencode --session <id>` | `opencode --prompt <prompt>` |
+| Copilot CLI | `~/.copilot/session-store.db` (read-only), `~/.copilot/session-state/` | `copilot --resume <id>` | `copilot -i <prompt>` |
+| Codex | `~/.codex/sessions/` | `codex resume <id>` | `codex <prompt>` |
 
 Codex support follows Codex's documented session format but has not yet been tested
 against real Codex sessions — reports welcome.
@@ -91,6 +95,10 @@ not supported yet (resuming relies on Unix `exec`).
 burrow-g                 open the terminal UI
 burrow-g list            print every session (refreshes all agents)
 burrow-g resume <id>     resume a session by id or id prefix
+burrow-g export <id> [-o file]
+                         print a session as Markdown (or write it to file)
+burrow-g handoff <id> <agent>
+                         continue a session in another agent, here
 burrow-g setup-sudo      let 'sudo burrow-g' work (once)
 burrow-g version         print the version
 burrow-g help            show help
@@ -104,6 +112,8 @@ burrow-g help            show help
 | `enter` / `→` / `tab` | go to its sessions | open in a new tab (or here, see below) |
 | `o` | — | resume in this terminal |
 | `b` | — | bookmark (★) — bookmarked sessions stay at the top |
+| `e` | — | export to `~/.local/share/burrow-g/exports/<agent>-<id>.md` |
+| `t` | — | hand off to an installed agent (`enter` new tab, `o` here, `esc` cancel) |
 | `/` | — | search title or folder |
 | `ctrl+k` | commands | commands |
 | `←` / `esc` | — | back to agents |
@@ -124,6 +134,8 @@ line (and closes the bar when it is empty), and `ctrl+k` closes it too.
 |---|---|
 | `theme <name>` | switch colours; the list previews live while you choose, and the choice is remembered |
 | `refresh` | refresh sessions |
+| `export` | export the selected session, like `e` |
+| `handoff [@agent:<name>]` | hand off the selected session; with `@agent:` it skips the picker |
 | `help` | show help (`↑`/`↓` scroll, `esc` closes it) |
 | `quit` | quit |
 
@@ -234,6 +246,20 @@ burrow-G brings index files from older versions up to date itself, every time it
 
 New to Bubble Tea? [docs/bubbletea-cheatsheet.md](docs/bubbletea-cheatsheet.md) explains
 the model/update/view idea from scratch and walks through this codebase.
+
+### Export and handoff
+
+An export holds the main conversation: your prompts, the agent's replies, and one line per
+tool call (`- tool: Bash go test ./...`). Thinking, tool outputs and subagent work are left
+out. Export files are readable only by you.
+
+A handoff starts a **new** session in the target agent; it doesn't replay the old one, so
+the agent only knows what the transcript says. burrow-G writes nothing into any agent's
+files; the target agent saves its new session itself. Before the transcript leaves, AWS,
+GitHub, OpenAI, Anthropic and Slack keys, `Bearer` tokens and PEM private keys are replaced
+with `[redacted]` (best effort: a password typed in plain words still goes across). When a
+session is over 100 KB, the first prompt and the newest messages are kept and the middle is
+replaced with one `[N messages omitted]` line. A one line report says what was sent.
 
 ## Roadmap
 
