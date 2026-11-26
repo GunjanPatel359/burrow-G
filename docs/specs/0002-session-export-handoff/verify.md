@@ -17,7 +17,7 @@ _Last run 2026-11-26: all steps passed against the real binary in a sandbox home
 - [x] Before and after exports and a handoff, compare `find ~/.claude ~/.qoder ~/.codex ~/.copilot ~/.local/share/opencode -newer <marker>` → only files the target agent wrote for its new session change; burrow-G writes only under `~/.local/share/burrow-g/` or the `-o` path → AC-12
 
 ## UI / manual
-- [x] TUI, sessions pane, press `e` → status bar `exported N messages, M secrets masked to ~/.local/share/burrow-g/exports/<agent>-<id>.md`; file `600`, folder `700`; press `e` again → file replaced → AC-3
+- [x] TUI, sessions pane, press `e` → status bar `exported ~/.local/share/burrow-g/exports/<agent>-<id>.md · N messages, M secrets masked`; file `600`, folder `700`; press `e` again → file replaced → AC-3
 - [x] `ctrl+k`, run `export` → same as `e`; with no session selected (empty agent) → `select a session first` → AC-3
 - [x] Press `t` → "Hand off session" dialog lists only agents installed on PATH (source included); `esc` closes it and nothing starts → AC-5
 - [x] In GNOME Terminal, `t`, pick Codex, `enter` → a new tab opens in the session's folder with Codex and the prompt; burrow-G stays open and its status bar shows the `handed off to codex: …` report → AC-5, AC-8

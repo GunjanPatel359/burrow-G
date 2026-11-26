@@ -33,7 +33,7 @@ Each folder here reads one agent CLI's sessions and turns them into the shared `
 - Close errors from read only connections are ignored (`defer db.Close()`); never fail a refresh over them.
 - Skip child sessions: OpenCode rows with a `parent_id`, Codex subagent rollouts. In transcripts, Copilot subagent events are the ones with `parentToolCallId`; `parentAgentTaskId` is also set on the person's own prompts.
 - Field types differ between record kinds: Qoder writes `timestamp` as epoch milliseconds on bookkeeping records, so decode such fields leniently or a valid line counts as skipped.
-- Drop injected user text by its tag name (`<task-notification`, `<environment_context`, …), never by a leading `<`: real prompts and pasted content start with one too.
+- Drop injected user text with `transcript.StripInjected` and the agent's tag names, never by a leading `<`: real prompts and pasted content start with one too. Claude also writes `isCompactSummary` records and `[Request interrupted by user]` turns, neither of which the person typed.
 - Codex support follows its documented format and is untested against real sessions.
 
 _Drafted by /audit from the repo, worth a quick human pass. Edit freely: once a line stops matching this draft, later runs treat it as curated and will flag rather than overwrite it._

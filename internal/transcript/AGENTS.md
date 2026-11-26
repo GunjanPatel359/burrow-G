@@ -13,12 +13,14 @@ Turns a session's conversation (`session.Transcript`, read by each agent's `tran
 | `budget.go` | `Prompt`: preamble, masking, the 100,000 byte `Budget`, first user message plus newest kept |
 | `handoff.go` | `Handoff` (refusals, then argv), `Targets`, `Report`, `ExportReport` |
 | `export.go` | `ExportPath`, `SaveExport`, `WritePrivate` (0600 files, 0700 folder) |
+| `inject.go` | `StripInjected`: drops agent added blocks from the start of a person's turn, by whole tag name |
 
 ## Conventions
 
 - Mask before cutting or budgeting: tool lines are masked whole, then cut to 120 characters, so a secret crossing a cut can't leak. Sizes count the masked text.
 - `len(Prompt) <= Budget` always, preamble included. A new piece of prompt text must fit inside that count.
-- `Stats.Masked` in a prompt counts only secrets in what was sent; `Stats.Messages` only messages actually kept.
+- `Stats.Masked` in a prompt counts only secrets in what was sent; `Stats.Messages` only messages actually kept. A message is a block: text after a tool call starts a new one, so one turn can count as several.
+- Both outputs drop control bytes other than newline and tab (`clean`): a NUL fails `exec`, and an escape sequence in an export could drive the reader's terminal.
 - Side effects stay injectable: `Handoff` and `Targets` take `lookPath`; nothing here calls `exec` or reads `PATH` itself.
 - A new secret shape goes in `secretPatterns` (or `labeled` when only its name gives it away) with a case in `redact_test.go`, and in the README's list.
 
