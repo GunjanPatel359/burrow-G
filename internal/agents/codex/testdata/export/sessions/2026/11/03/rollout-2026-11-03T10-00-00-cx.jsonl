@@ -1,0 +1,17 @@
+{"timestamp":"2026-11-03T10:00:00Z","type":"session_meta","payload":{"id":"cx","timestamp":"2026-11-03T10:00:00Z","cwd":"/tmp/c","originator":"codex_cli_rs","cli_version":"0.142.5","source":"cli"}}
+{"timestamp":"2026-11-03T10:00:01Z","type":"turn_context","payload":{"cwd":"/tmp/c","model":"gpt-test","approval_policy":"on-request"}}
+{"timestamp":"2026-11-03T10:00:02Z","type":"response_item","payload":{"type":"message","role":"developer","content":[{"type":"input_text","text":"sandbox rules"}]}}
+{"timestamp":"2026-11-03T10:00:03Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"<environment_context>\n  <cwd>/tmp/c</cwd>\n</environment_context>"}]}}
+{"timestamp":"2026-11-03T10:00:04Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"add retry logic"},{"type":"input_image","image_url":"data:image/png;base64,iVBO"}]}}
+{"timestamp":"2026-11-03T10:00:04Z","type":"event_msg","payload":{"type":"user_message","message":"add retry logic","images":[]}}
+{"timestamp":"2026-11-03T10:00:05Z","type":"response_item","payload":{"type":"reasoning","summary":[{"type":"summary_text","text":"plan"}],"encrypted_content":"x"}}
+{"timestamp":"2026-11-03T10:00:06Z","type":"response_item","payload":{"type":"reasoning","summary":[],"encrypted_content":"y"}}
+{"timestamp":"2026-11-03T10:00:07Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"on it"}]}}
+{"timestamp":"2026-11-03T10:00:08Z","type":"response_item","payload":{"type":"function_call","name":"shell","arguments":"{\"command\":[\"ls\"]}","call_id":"c1"}}
+{"timestamp":"2026-11-03T10:00:09Z","type":"response_item","payload":{"type":"custom_tool_call","name":"apply_patch","input":"*** Begin Patch","call_id":"c2","status":"completed"}}
+{"timestamp":"2026-11-03T10:00:10Z","type":"response_item","payload":{"type":"function_call_output","call_id":"c1","output":"a\nb"}}
+{"timestamp":"2026-11-03T10:00:11Z","type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"c2","output":{"content":"patch failed","success":false}}}
+{"timestamp":"2026-11-03T10:00:12Z","type":"response_item","payload":{"type":"message","role":"assistant","content":[{"type":"output_text","text":"done"}]}}
+{"timestamp":"2026-11-03T10:00:13Z","type":"compacted","payload":{"message":"Sum","replacement_history":[]}}
+{"timestamp":"2026-11-03T10:00:14Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"next"}]}}
+{"timestamp":"2026-11-03T10:00:15Z","type":"response_item","payload":{"type":"function_call","name":"shell","arguments":"{}","call_id":"c3"}}

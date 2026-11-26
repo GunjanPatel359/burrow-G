@@ -156,6 +156,16 @@ Qoder's JSONL follows Claude Code's format, so `qoder/export.go` follows section
 4. `logicalParentUuid` on a boundary points back to the older segment. The reader doesn't use it either way (section 5, rule 3).
 5. Thinking blocks keep their text, so Qoder exports carry `reasoning` parts.
 
+### 5b. Codex reader (step 3)
+
+Codex has no export command; `codex/export.go` reads the rollout file. **Untested against real sessions** (none on the machine this was built on), like the Codex `List` reader: it follows Codex's documented rollout format, and every type name below was checked present in the codex-cli 0.142.5 binary.
+
+1. The rollout is found by its `session_meta` id, read the way `List` reads it (file names don't always carry the id). Title and folder come from the same `parseFile` and `session_index.jsonl` names `List` uses.
+2. `response_item` lines are the conversation; `event_msg` lines repeat them for the UI and are counted as bookkeeping; `turn_context` sets the model for the assistant records after it; `compacted` becomes a compaction record (its `message`).
+3. Items: user and assistant `message` (`input_text`, `output_text`, `input_image` as a `data:` URL → image part); `reasoning` → its `summary_text` joined (only `encrypted_content` → dropped as `thinking without text`); `function_call` (its `arguments` text kept as JSON), `custom_tool_call` (free text `input` kept as a JSON string), `local_shell_call` and `web_search_call` (their `action`) → tool calls; `*_output` → tool results (`output` as text, `{content, success}` with `success: false` as an error, or a list of content items).
+4. `developer` and `system` messages, and user text that starts with `<environment_context>`, `<user_instructions>` or `# AGENTS.md instructions`, are Codex's own and dropped as `injected text`.
+5. Grouping: assistant side items make one reply; tool outputs collect after it; the next assistant side item after outputs starts a new reply, a user message ends it.
+
 ### 6. OpenCode native route (step 2)
 
 - `opencode.Source` gains a `Run func(name string, args ...string) ([]byte, error)` field; `main.go` sets it to an `exec` wrapper. Tests set it to return a saved export file from `testdata/`. Nil `Run` means `ErrUnsupported`, so a reader built without it still compiles and lists.
