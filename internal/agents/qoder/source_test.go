@@ -80,3 +80,10 @@ func TestList_MissingFolder(t *testing.T) {
 		t.Errorf("err = %v, want session.ErrMissing", err)
 	}
 }
+
+func TestExportUnsupported(t *testing.T) {
+	err := Source{}.Export(session.Session{ID: "x"}, nil)
+	if !errors.Is(err, session.ErrUnsupported) {
+		t.Errorf("Export() = %v, want session.ErrUnsupported", err)
+	}
+}

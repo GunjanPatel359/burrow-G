@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/GunjanPatel359/burrow-G/internal/helpers"
+	"github.com/GunjanPatel359/burrow-G/internal/portable"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
 
@@ -144,4 +145,8 @@ func threadNames(path string) map[string]string {
 		}
 	}
 	return names
+}
+
+func (Source) Export(s session.Session, w *portable.Writer) error {
+	return session.ErrUnsupported
 }

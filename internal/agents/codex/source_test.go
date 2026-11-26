@@ -55,3 +55,10 @@ func TestDelete_NotSupported(t *testing.T) {
 		t.Error("want an error: delete is not supported for codex yet")
 	}
 }
+
+func TestExportUnsupported(t *testing.T) {
+	err := Source{}.Export(session.Session{ID: "x"}, nil)
+	if !errors.Is(err, session.ErrUnsupported) {
+		t.Errorf("Export() = %v, want session.ErrUnsupported", err)
+	}
+}

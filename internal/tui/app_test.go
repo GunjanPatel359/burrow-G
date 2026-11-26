@@ -14,6 +14,7 @@ import (
 	"github.com/GunjanPatel359/burrow-G/internal/command/event"
 	"github.com/GunjanPatel359/burrow-G/internal/db"
 	"github.com/GunjanPatel359/burrow-G/internal/launch"
+	"github.com/GunjanPatel359/burrow-G/internal/portable"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/agentlist"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/commandbar"
@@ -31,6 +32,9 @@ func (f fakeSource) ResumeCommand(s session.Session) []string {
 	return []string{f.name, "--resume", s.ID}
 }
 func (f fakeSource) Delete(session.Session, string) error { return nil }
+func (fakeSource) Export(session.Session, *portable.Writer) error {
+	return session.ErrUnsupported
+}
 
 func testModel(t *testing.T) (model, *db.DB) {
 	return testModelWith(t, nil, "/tmp")

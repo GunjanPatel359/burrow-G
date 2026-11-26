@@ -9,6 +9,7 @@ import (
 
 	_ "modernc.org/sqlite"
 
+	"github.com/GunjanPatel359/burrow-G/internal/portable"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
 
@@ -69,4 +70,8 @@ func (Source) ResumeCommand(s session.Session) []string {
 
 func (Source) Delete(s session.Session, trashDir string) error {
 	return errors.New("delete not supported for copilot yet")
+}
+
+func (Source) Export(s session.Session, w *portable.Writer) error {
+	return session.ErrUnsupported
 }

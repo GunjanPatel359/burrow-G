@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/GunjanPatel359/burrow-G/internal/db"
+	"github.com/GunjanPatel359/burrow-G/internal/portable"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
 
@@ -48,6 +49,9 @@ func (f fakeSource) Name() string                           { return f.name }
 func (f fakeSource) List() ([]session.Session, error)       { return f.list, f.err }
 func (f fakeSource) ResumeCommand(session.Session) []string { return nil }
 func (f fakeSource) Delete(session.Session, string) error   { return nil }
+func (fakeSource) Export(session.Session, *portable.Writer) error {
+	return session.ErrUnsupported
+}
 
 func TestRefreshAll_SkipsBrokenSource(t *testing.T) {
 	store, err := db.Open(filepath.Join(t.TempDir(), "sessions.db"), "0.0.2")

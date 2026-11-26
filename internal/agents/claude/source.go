@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/GunjanPatel359/burrow-G/internal/portable"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
 
@@ -52,4 +53,8 @@ func (Source) ResumeCommand(s session.Session) []string {
 
 func (Source) Delete(s session.Session, trashDir string) error {
 	return errors.New("not implemented")
+}
+
+func (Source) Export(s session.Session, w *portable.Writer) error {
+	return session.ErrUnsupported
 }
