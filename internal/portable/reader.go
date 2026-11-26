@@ -14,7 +14,7 @@ type Reader struct {
 	sc     *bufio.Scanner
 	header Header
 	end    End
-	done   bool
+	done   bool // the end line was read
 }
 
 // NewReader reads the header line and refuses anything that isn't a
@@ -29,8 +29,7 @@ func NewReader(in io.Reader) (*Reader, error) {
 		return nil, errors.New("not a burrow-G export: empty file")
 	}
 	var h Header
-	if err := json.Unmarshal(sc.Bytes(), &h); err != nil || h.Kind != "header" ||
-		!strings.HasPrefix(h.Format, "burrow-session/") {
+	if json.Unmarshal(sc.Bytes(), &h) != nil || h.Kind != "header" || !strings.HasPrefix(h.Format, "burrow-session/") {
 		return nil, errors.New("not a burrow-G export: no burrow-session header")
 	}
 	return &Reader{sc: sc, header: h}, nil
@@ -50,23 +49,16 @@ func (r *Reader) Next() (Record, error) {
 		}
 		return Record{}, ErrTruncated
 	}
-	line := r.sc.Bytes()
-	var kind struct {
-		Kind string `json:"kind"`
-	}
-	if err := json.Unmarshal(line, &kind); err != nil {
+	var rec Record
+	if err := json.Unmarshal(r.sc.Bytes(), &rec); err != nil {
 		return Record{}, fmt.Errorf("bad line: %w", err)
 	}
-	if kind.Kind == "end" {
-		if err := json.Unmarshal(line, &r.end); err != nil {
+	if rec.Kind == "end" {
+		if err := json.Unmarshal(r.sc.Bytes(), &r.end); err != nil {
 			return Record{}, fmt.Errorf("bad end line: %w", err)
 		}
 		r.done = true
 		return Record{}, io.EOF
-	}
-	var rec Record
-	if err := json.Unmarshal(line, &rec); err != nil {
-		return Record{}, fmt.Errorf("bad record: %w", err)
 	}
 	return rec, nil
 }
