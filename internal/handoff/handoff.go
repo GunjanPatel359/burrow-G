@@ -138,15 +138,23 @@ func recent(turns []turn, keepFirst bool, room int) string {
 	const heading = "\n## Recent conversation\n\n"
 	const gapRoom = 80 // the "left out" line, whatever its count
 	used := len(heading) + gapRoom
+
+	// A lone turn is the newest; it isn't kept a second time as the first.
+	keepFirst = keepFirst && len(turns) > 1
 	first := 0
 	if keepFirst {
+		turns[0] = turns[0].fit(room / 2)
 		used += turns[0].size()
 		first = 1
 	}
-	// Walk back from the newest turn while the next older one still fits.
-	// The newest is always kept: the agent needs to know where it stopped.
-	start := len(turns) - 1
-	used += turns[start].size()
+	// The newest turn is always kept: the agent needs to know where it
+	// stopped. One reply can hold many tool calls, so it may itself be cut.
+	last := len(turns) - 1
+	turns[last] = turns[last].fit(room - used)
+	used += turns[last].size()
+
+	// Walk back from the newest while the next older turn still fits.
+	start := last
 	for start > first && used+turns[start-1].size() <= room {
 		start--
 		used += turns[start].size()
@@ -164,4 +172,21 @@ func recent(turns []turn, keepFirst bool, room int) string {
 		b.WriteString(t.String() + "\n\n")
 	}
 	return b.String()
+}
+
+// fit keeps the newest blocks of t that fit in room bytes, and a line
+// where the older ones were left out. The newest block always stays.
+func (t turn) fit(room int) turn {
+	if t.size() <= room || len(t.blocks) < 2 {
+		return t
+	}
+	const noteRoom = 80
+	from := len(t.blocks) - 1
+	used := noteRoom + len("\n\n") + len(t.blocks[from])
+	for from > 0 && used+len(t.blocks[from-1])+1 <= room {
+		from--
+		used += len(t.blocks[from]) + 1
+	}
+	note := fmt.Sprintf("[%d earlier parts of this message left out; see the full record]", from)
+	return turn{fromUser: t.fromUser, blocks: append([]string{note}, t.blocks[from:]...)}
 }

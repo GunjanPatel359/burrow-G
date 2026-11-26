@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -191,5 +192,38 @@ func TestPrompt(t *testing.T) {
 	want := `Read /h/claude-a.md: it is the record of an earlier session from Claude Code about "Fix it". Summarize where it left off in a few lines, then wait for me.`
 	if got := Prompt("/h/claude-a.md", "Claude Code", "Fix it"); got != want {
 		t.Errorf("Prompt() =\n%s\nwant\n%s", got, want)
+	}
+}
+
+// One reply can hold many tool calls (OpenCode, Codex, Copilot group them),
+// so the budget trims inside a turn too, keeping its newest calls.
+func TestRenderBudgetTrimsAHugeTurn(t *testing.T) {
+	var calls, results []portable.Part
+	for i := range 60 {
+		id := fmt.Sprintf("t%02d", i)
+		calls = append(calls, portable.Part{Type: "tool_call", ID: id, Name: "Read",
+			Input: json.RawMessage(`{"path":"` + strings.Repeat("p", 880) + id + `"}`)})
+		results = append(results, portable.Part{Type: "tool_result", ID: id, Text: strings.Repeat("o", 3000)})
+	}
+	var out bytes.Buffer
+	r := export(t, true, user("go"), reply(calls...), portable.Record{Kind: "message", Role: "user", Parts: results})
+	if err := Render(r, Options{Agent: "Codex", Record: "/x", Budget: 100_000}, &out); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	if len(got) > 100_000 {
+		t.Errorf("file is %d bytes, want at most 100000", len(got))
+	}
+	if !strings.Contains(got, "t59\"}`") || strings.Contains(got, "t00\"}`") {
+		t.Error("want the newest calls kept and the oldest left out")
+	}
+	if !strings.Contains(got, "earlier parts of this message left out; see the full record]") {
+		t.Error("no marker where parts of the turn were left out")
+	}
+}
+
+func TestRenderSingleTurnOnce(t *testing.T) {
+	if got := render(t, user("only-prompt")); strings.Count(got, "**User:** only-prompt") != 1 {
+		t.Errorf("the only message is drawn %d times:\n%s", strings.Count(got, "**User:** only-prompt"), got)
 	}
 }

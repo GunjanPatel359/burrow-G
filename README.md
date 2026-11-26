@@ -47,6 +47,8 @@ of them — in the right folder, with the right command.
 - **Search** — `/` filters by title or folder.
 - **Resume anywhere** — `enter` opens the session in a **new terminal tab** and keeps burrow-G
   open; `o` resumes it right here. It always starts in the session's original folder.
+- **Continue elsewhere** — `e` saves a session to a file, or continues it in any other agent you
+  have installed, starting from its latest summary and recent conversation.
 - **Safe** — agents' files are only ever read, never changed.
 
 ## Supported agents
@@ -138,7 +140,7 @@ to read the handoff file, since it is outside the project folder.
 OpenCode sessions are saved with OpenCode's own `opencode session export`, so `opencode` must be
 on your `PATH`; the other agents' files are read directly, and only read.
 
-## Commands
+### Commands
 
 Press `ctrl+k` to open the command bar: it lists the commands. Pick one with `↑`/`↓`
 and press `enter`, or type it. A command that needs a value, like `theme`, then lists
@@ -194,7 +196,8 @@ there, and resumes in the same terminal instead of opening a new tab.
   reading its files.
 - Resuming changes into the session's folder and replaces burrow-G with the agent's own
   command, so when you quit the agent you are back at your normal prompt.
-- Nothing leaves your machine.
+- Nothing leaves your machine unless you choose **Continue in** an agent: then the handoff file
+  and the export it points at go to that agent, and through it to its model, as they are.
 
 ## Development
 
