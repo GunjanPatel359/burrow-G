@@ -80,11 +80,13 @@ func TestCustomInput(t *testing.T) {
 		{"several commands", "await Promise.allSettled([\ntools.exec_command({cmd:\"ls\"}),\ntools.exec_command({cmd:\"pwd\"})])", "exec ls (+1 more)"},
 		{"inner tool", `text(await tools.apply_patch("*** Begin Patch"))`, "exec apply_patch"},
 		{"plain text", `*** Begin Patch`, "exec"},
+		{"backticks", "text(await tools.exec_command({cmd:`ls -la`}))", "exec ls -la"},
+		{"word boundary", `text(await tools.exec_command({subcmd:"no", cmd:"yes"}))`, "exec yes"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			raw, _ := json.Marshal(tt.input)
-			if got := transcript.ToolLine("exec", customInput(raw)); got != tt.want {
+			if got := transcript.ToolLine("exec", customInput("exec", raw)); got != tt.want {
 				t.Errorf("got %q, want %q", got, tt.want)
 			}
 		})
@@ -105,5 +107,12 @@ func TestPersonText(t *testing.T) {
 		if got := personText(tt.role, tt.in); got != tt.want {
 			t.Errorf("personText(%s, %q) = %q, want %q", tt.role, tt.in, got, tt.want)
 		}
+	}
+}
+
+func TestCustomInput_OnlyExec(t *testing.T) {
+	raw, _ := json.Marshal("*** Begin Patch\n+  cmd: \"go test\"\n+tools.fake(\n*** End Patch")
+	if got := transcript.ToolLine("apply_patch", customInput("apply_patch", raw)); got != "apply_patch" {
+		t.Errorf("got %q, want the patch left alone", got)
 	}
 }

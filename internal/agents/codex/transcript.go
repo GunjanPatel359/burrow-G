@@ -91,21 +91,23 @@ func addItem(t *session.Transcript, it item) {
 	case "function_call":
 		t.Add(session.Message{Role: "assistant", Time: it.Timestamp, Tools: []string{transcript.ToolLine(p.Name, p.Arguments)}})
 	case "custom_tool_call":
-		t.Add(session.Message{Role: "assistant", Time: it.Timestamp, Tools: []string{transcript.ToolLine(p.Name, customInput(p.Input))}})
+		t.Add(session.Message{Role: "assistant", Time: it.Timestamp, Tools: []string{transcript.ToolLine(p.Name, customInput(p.Name, p.Input))}})
 	}
 }
 
 var (
-	execCmd  = regexp.MustCompile(`cmd:\s*("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')`)
+	execCmd  = regexp.MustCompile("\\bcmd:\\s*(\"(?:[^\"\\\\]|\\\\.)*\"|'(?:[^'\\\\]|\\\\.)*'|`[^`]*`)")
 	execTool = regexp.MustCompile(`tools\.(\w+)\(`)
 )
 
 // customInput turns a custom tool's input into JSON ToolLine can read. The
 // exec tool takes JavaScript such as tools.exec_command({cmd:"go test"}), so
 // its first shell command becomes the argument, else the inner tool's name.
-func customInput(raw json.RawMessage) json.RawMessage {
+// Other tools (apply_patch) carry text that only looks like code, so they
+// are left as they are.
+func customInput(name string, raw json.RawMessage) json.RawMessage {
 	var src string
-	if json.Unmarshal(raw, &src) != nil || json.Valid([]byte(src)) {
+	if name != "exec" || json.Unmarshal(raw, &src) != nil || json.Valid([]byte(src)) {
 		return raw
 	}
 	arg := ""
@@ -127,6 +129,9 @@ func customInput(raw json.RawMessage) json.RawMessage {
 // unquote reads a JavaScript string literal, keeping it as written if it
 // uses an escape Go doesn't know.
 func unquote(lit string) string {
+	if lit[0] == '`' {
+		return lit[1 : len(lit)-1]
+	}
 	if lit[0] == '\'' {
 		lit = `"` + strings.ReplaceAll(strings.ReplaceAll(lit[1:len(lit)-1], `\'`, `'`), `"`, `\"`) + `"`
 	}
