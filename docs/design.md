@@ -11,7 +11,7 @@ Colors, symbols and sizes live in `internal/tui/theme`. The shared drawing piece
 | Package | Owns | May import |
 |---|---|---|
 | `internal/tui/theme` | palettes, color depth, glyph sets, layout sizes, `Theme` (ready styles) | lipgloss, termenv (never bubbles) |
-| `internal/tui/ui` | `Row`, `SurfaceRow`, `PaneHeader`, `Divider`, `VRule`, `KeyHints`, `StatusDot`, `Dialog`, `Overlay`, `EmptyState` | theme, lipgloss, `charmbracelet/x/ansi`, `bubbles/key` |
+| `internal/tui/ui` | `Row`, `SurfaceRow`, `PaneHeader`, `Divider`, `VRule`, `KeyHints`, `StatusDot`, `StatusLine`, `Dialog`, `Overlay`, `EmptyState` | theme, lipgloss, `charmbracelet/x/ansi`, `bubbles/key` |
 | `internal/tui/components/*`, `internal/tui/*.go` | screens and state | ui, theme (styles and tokens only) |
 
 So outside `theme/` you never write `lipgloss.Color(...)`, a hex string, an ANSI index, or a literal symbol from the glyph table below. `lipgloss.NewStyle()` is still fine for width and height. Tests may use literal colors and symbols in expected output.
@@ -144,6 +144,7 @@ Draw shared pieces with these, from `internal/tui/ui`. Each takes the `theme.The
 | `HintText(g, binding)` | the same hint as plain text, for the help command's key list. |
 | `KeyName(g, help)` | a help key with arrows from the glyph set: `up/down` becomes `↑/↓`. |
 | `StatusDot(t, status)` | the dot (or spinner frame) and text, colored by `OK`, `Busy` or `Error`. |
+| `StatusLine(t, status, width, bindings...)` | the status line: the status on the left, the key hints flush against the right edge, so they stay put while the status comes and goes. Hints that don't fit are left out from the end; with none left, the status is cut. |
 | `Dialog(t, title, body, keys, width)` | a rounded frame on Surface: title in Accent bold, body in Text (wrapped, never cut), key hints last. 24 to 50 cells wide. |
 | `Overlay(base, box, width, height)` | puts a box in the middle of a screen, keeping the rest visible. Never makes the screen bigger. |
 | `EmptyState(t, message, hint, width, height)` | a message and a Muted hint, centered. Lines that don't fit are cut. |
@@ -201,6 +202,8 @@ Hints are `key action` pairs. They come from the bindings in `keys.go`, never fr
 Refresh: key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
 Move:    key.NewBinding(key.WithKeys("up", "down"), key.WithHelp("up/down", "move")),
 ```
+
+List hints **most important first** in `keys.go` (`agentHints`, `sessionHints`): a narrow status line keeps the first ones and drops the rest, and `ctrl+k` then `help` still lists every key. The way back (`← agents`) comes right after moving and opening, because a narrow window shows one pane at a time.
 
 Spell keys the way `keys.go` does (`enter`, `esc`, `ctrl+k`). For arrows, write `up`, `down`, `left` or `right` in the help key; `KeyHints` and `HintText` swap them for the glyph set's arrows. The status line and the help command's key list are both built from these same bindings, so they always agree.
 

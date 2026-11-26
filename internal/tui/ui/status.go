@@ -1,6 +1,14 @@
 package ui
 
-import "github.com/GunjanPatel359/burrow-G/internal/tui/theme"
+import (
+	"strings"
+
+	"github.com/charmbracelet/bubbles/key"
+	"github.com/charmbracelet/lipgloss"
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
+)
 
 // Kind is what a status line reports.
 type Kind int
@@ -33,4 +41,25 @@ func StatusDot(t theme.Theme, s Status) string {
 		style = t.Error
 	}
 	return style.Render(glyph + " " + s.Text)
+}
+
+// StatusLine draws the status on the left and the key hints flush against the
+// right edge, width cells in all, so the hints stay put while the status comes
+// and goes. When it doesn't fit, hints are left out from the end (they are
+// listed most important first); with none left the status itself is cut.
+func StatusLine(t theme.Theme, s Status, width int, keys ...key.Binding) string {
+	left := ""
+	if s.Text != "" {
+		left = " " + StatusDot(t, s)
+	}
+	for n := len(keys); n > 0; n-- {
+		right := KeyHints(t, keys[:n]...)
+		if gap := width - lipgloss.Width(left) - lipgloss.Width(right) - 1; gap >= 2 {
+			return left + strings.Repeat(" ", gap) + right + " "
+		}
+	}
+	if lipgloss.Width(left) > width {
+		return ansi.Truncate(left, width, t.Glyph.Ellipsis)
+	}
+	return left + strings.Repeat(" ", width-lipgloss.Width(left))
 }

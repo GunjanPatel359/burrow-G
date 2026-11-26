@@ -8,6 +8,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
 )
@@ -100,5 +101,22 @@ func TestFadeKeepsNewerStatus(t *testing.T) {
 	m, _ = m.Update(fade())
 	if !strings.Contains(m.View(), "disk full") {
 		t.Errorf("a fade cleared an error: %q", m.View())
+	}
+}
+
+// The hints stay where they are when a message comes and goes.
+func TestHintsStayPut(t *testing.T) {
+	m := New(theme.Get(theme.Default, theme.Env{}))
+	m.SetWidth(80)
+	m.SetHelp(key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")))
+	at := func() int { // the hint's column in cells, not bytes: "●" is 3 bytes
+		line := ansi.Strip(m.View())
+		return ansi.StringWidth(line[:strings.Index(line, "q quit")])
+	}
+
+	idle := at()
+	m.OK(`exported "a long session title"`)
+	if got := at(); got != idle || idle < 0 {
+		t.Errorf("hints at %d with a message, %d without", got, idle)
 	}
 }

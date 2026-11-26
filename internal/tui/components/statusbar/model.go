@@ -27,12 +27,14 @@ type Model struct {
 	seq    int // counts status changes, so a late fade can't clear a newer one
 	spin   spinner.Model
 	help   []key.Binding
+	width  int // 0 until the app sizes it: then the hints follow the status
 }
 
 func New(t theme.Theme) Model { return Model{theme: t} }
 
 func (m *Model) SetTheme(t theme.Theme)          { m.theme = t }
 func (m *Model) SetHelp(bindings ...key.Binding) { m.help = bindings }
+func (m *Model) SetWidth(w int)                  { m.width = w }
 
 // Busy shows text with a spinner and returns its first tick. When it is
 // already spinning only the text changes, so the spinner never runs twice.
@@ -95,12 +97,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 func (m Model) busy() bool { return m.status.Kind == ui.Busy && m.status.Text != "" }
 
 func (m Model) View() string {
+	s := m.status
+	if m.busy() {
+		s.Frame = m.spin.View()
+	}
+	if m.width > 0 {
+		return ui.StatusLine(m.theme, s, m.width, m.help...)
+	}
 	dot := ""
-	if m.status.Text != "" {
-		s := m.status
-		if m.busy() {
-			s.Frame = m.spin.View()
-		}
+	if s.Text != "" {
 		dot = ui.StatusDot(m.theme, s) + "   "
 	}
 	return " " + dot + ui.KeyHints(m.theme, m.help...)

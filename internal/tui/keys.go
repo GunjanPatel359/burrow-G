@@ -39,18 +39,21 @@ var hints = struct {
 	Close:  key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "close")),
 }
 
+// agentHints, like sessionHints, lists the most important first.
 func agentHints() []key.Binding {
 	return []key.Binding{hints.Agent, hints.Open, keys.Refresh, keys.Command, keys.Quit}
 }
 
 // sessionHints depends on whether new tabs are supported in this terminal.
+// Most important first: a narrow status line drops hints from the end, and
+// the way back to agents must stay when only one pane shows.
 func sessionHints(tabs bool) []key.Binding {
 	open := []key.Binding{keys.Enter}
 	if tabs {
 		open = []key.Binding{hints.NewTab, keys.Here}
 	}
 	return slices.Concat([]key.Binding{hints.Move}, open,
-		[]key.Binding{keys.Bookmark, keys.Export, hints.Search, keys.Left, keys.Refresh, keys.Command, keys.Quit})
+		[]key.Binding{keys.Left, hints.Search, keys.Bookmark, keys.Export, keys.Refresh, keys.Command, keys.Quit})
 }
 
 func helpViewHints() []key.Binding {
