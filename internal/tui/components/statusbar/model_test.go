@@ -7,6 +7,7 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
 )
@@ -68,5 +69,28 @@ func TestSpinner(t *testing.T) {
 	m.Busy("refreshing...")
 	if _, cmd := m.Update(tick.(spinner.TickMsg)); cmd != nil {
 		t.Error("a tick from an earlier spinner should be dropped")
+	}
+}
+
+func TestView_FitsWidth(t *testing.T) {
+	bind := func(k, desc string) key.Binding { return key.NewBinding(key.WithKeys(k), key.WithHelp(k, desc)) }
+	m := New(theme.Get(theme.Default, theme.Env{}))
+	m.SetHelp(bind("a", "first"), bind("b", "second"), bind("c", "third"))
+	m.OK("done")
+
+	m.SetWidth(35)
+	v := ansi.Strip(m.View())
+	if !strings.Contains(v, "a first · b second") || strings.Contains(v, "c third") || ansi.StringWidth(v) > 35 {
+		t.Errorf("want the last hint dropped whole: %q", v)
+	}
+
+	m.OK(strings.Repeat("x", 50))
+	if v := ansi.Strip(m.View()); ansi.StringWidth(v) > 35 || strings.Contains(v, "first") {
+		t.Errorf("a long message keeps the line and is cut to fit: %q", v)
+	}
+
+	m.SetWidth(0)
+	if v := ansi.Strip(m.View()); !strings.Contains(v, "c third") {
+		t.Errorf("no width draws every hint: %q", v)
 	}
 }

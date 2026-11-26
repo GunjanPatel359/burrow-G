@@ -208,7 +208,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if msg.err != nil {
 			m.status.Error(msg.err)
 		} else {
-			m.status.OK(transcript.ExportReport(msg.stats) + " to " + helpers.ShortPath(msg.path, m.home))
+			// The path goes first so a narrow status line still shows all of it.
+			m.status.OK("exported " + helpers.ShortPath(msg.path, m.home) + " " + m.theme.Glyph.Sep + " " +
+				strings.TrimPrefix(transcript.ExportReport(msg.stats), "exported "))
 		}
 		return m, nil
 

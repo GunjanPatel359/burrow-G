@@ -40,8 +40,10 @@ var hints = struct {
 	Close:  key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "close")),
 }
 
+// Hint lists go most important first: a narrow status line drops them from the end.
+
 func agentHints() []key.Binding {
-	return []key.Binding{hints.Agent, hints.Open, keys.Refresh, keys.Command, keys.Quit}
+	return []key.Binding{hints.Agent, hints.Open, keys.Command, keys.Quit, keys.Refresh}
 }
 
 // sessionHints depends on whether new tabs are supported in this terminal.
@@ -51,7 +53,7 @@ func sessionHints(tabs bool) []key.Binding {
 		open = []key.Binding{hints.NewTab, keys.Here}
 	}
 	return slices.Concat([]key.Binding{hints.Move}, open,
-		[]key.Binding{keys.Bookmark, keys.Export, keys.Handoff, hints.Search, keys.Left, keys.Refresh, keys.Command, keys.Quit})
+		[]key.Binding{keys.Left, hints.Search, keys.Command, keys.Quit, keys.Bookmark, keys.Export, keys.Handoff, keys.Refresh})
 }
 
 func helpViewHints() []key.Binding {

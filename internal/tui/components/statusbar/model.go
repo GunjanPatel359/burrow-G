@@ -8,6 +8,7 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/ui"
@@ -18,12 +19,14 @@ type Model struct {
 	status ui.Status
 	spin   spinner.Model
 	help   []key.Binding
+	width  int // 0 draws everything, uncut
 }
 
 func New(t theme.Theme) Model { return Model{theme: t} }
 
 func (m *Model) SetTheme(t theme.Theme)          { m.theme = t }
 func (m *Model) SetHelp(bindings ...key.Binding) { m.help = bindings }
+func (m *Model) SetWidth(w int)                  { m.width = w }
 
 // Busy shows text with a spinner and returns its first tick. When it is
 // already spinning only the text changes, so the spinner never runs twice.
@@ -77,5 +80,21 @@ func (m Model) View() string {
 		}
 		dot = ui.StatusDot(m.theme, s) + "   "
 	}
-	return " " + dot + ui.KeyHints(m.theme, m.help...)
+	line := " " + dot + m.fitHints(m.width-ansi.StringWidth(" "+dot))
+	if m.width > 0 {
+		line = ansi.Truncate(line, m.width, m.theme.Glyph.Ellipsis)
+	}
+	return line
+}
+
+// fitHints drops whole hints from the end until they fit in room. Hints come
+// most important first, and ctrl+k still lists every key that drops.
+func (m Model) fitHints(room int) string {
+	help := m.help
+	hints := ui.KeyHints(m.theme, help...)
+	for m.width > 0 && ansi.StringWidth(hints) > room && len(help) > 0 {
+		help = help[:len(help)-1]
+		hints = ui.KeyHints(m.theme, help...)
+	}
+	return hints
 }

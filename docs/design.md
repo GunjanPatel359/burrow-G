@@ -202,6 +202,8 @@ Refresh: key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
 Move:    key.NewBinding(key.WithKeys("up", "down"), key.WithHelp("up/down", "move")),
 ```
 
+List a pane's hints most important first. When the status line is too narrow, it keeps the status message and drops whole hints from the end, never a cut word; `ctrl+k` still lists every key.
+
 Spell keys the way `keys.go` does (`enter`, `esc`, `ctrl+k`). For arrows, write `up`, `down`, `left` or `right` in the help key; `KeyHints` and `HintText` swap them for the glyph set's arrows. The status line and the help command's key list are both built from these same bindings, so they always agree.
 
 The command bar's own help text in `internal/command` stays plain words; the TUI styles it when shown. `burrow-g list` and other CLI output stay plain text too.
