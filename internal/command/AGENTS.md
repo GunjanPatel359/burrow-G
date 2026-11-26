@@ -11,14 +11,14 @@ The engine behind `ctrl+k`: it parses a line like `theme nord @agent:claude`, ch
 | `command.go` | `Command`, `Arg`, `Input`, `Env`, `Service`, `Match`, `Usage` |
 | `parse.go`, `run.go`, `suggest.go` | read a line (quotes, `@tag:value`), run it, suggest and complete |
 | `commands/commands.go` | `New`: the list of every command |
-| `commands/<name>.go` | one command each: `theme`, `refresh`, `help`, `quit` |
+| `commands/<name>.go` | one command each: `theme`, `refresh`, `export`, `handoff`, `help`, `quit` |
 | `event/event.go` | events a command returns, and `All` |
 
 ## Conventions
 
 - Adding a command: write `commands/<name>.go` with one `command.Command` (`Name`, `Help`, optional `Key`, `Args`, `Run`) and list it in `New`. Everything about the command stays in that file.
 - An `Arg` with no `Name` is the bare value (`in.Value()`); one with a `Name` is a tag (`in.Get("agent")`). An `Arg` several commands share is one variable listed in each.
-- Commands get what they need through `command.Env` (store, themes, current theme, keys), never globals, so tests can build a fake `Env`.
+- Commands get what they need through `command.Env` (store, themes, current theme, keys, the selected session, handoff targets), never globals, so tests can build a fake `Env`.
 - Tests run lines through `New(env).Run("…")` against a real temp database.
 
 ## Gotchas

@@ -31,7 +31,9 @@ Each folder here reads one agent CLI's sessions and turns them into the shared `
 - Return `session.ErrMissing` when the agent's folder or database is absent. `db.Refresh` keeps the saved list on `ErrMissing`; returning an empty list instead wipes it. An empty list is only right when the folder exists with no sessions.
 - Agents rename tables across versions (OpenCode `session` → `session_v2`). Detect which exists through `sqlite_master` and support both; only interpolate a table name picked from a fixed list.
 - Close errors from read only connections are ignored (`defer db.Close()`); never fail a refresh over them.
-- Skip child sessions: OpenCode rows with a `parent_id`, Codex subagent rollouts.
+- Skip child sessions: OpenCode rows with a `parent_id`, Codex subagent rollouts. In transcripts, Copilot subagent events are the ones with `parentToolCallId`; `parentAgentTaskId` is also set on the person's own prompts.
+- Field types differ between record kinds: Qoder writes `timestamp` as epoch milliseconds on bookkeeping records, so decode such fields leniently or a valid line counts as skipped.
+- Drop injected user text by its tag name (`<task-notification`, `<environment_context`, …), never by a leading `<`: real prompts and pasted content start with one too.
 - Codex support follows its documented format and is untested against real sessions.
 
 _Drafted by /audit from the repo, worth a quick human pass. Edit freely: once a line stops matching this draft, later runs treat it as curated and will flag rather than overwrite it._

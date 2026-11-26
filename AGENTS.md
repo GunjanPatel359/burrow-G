@@ -58,6 +58,7 @@ MCP servers: gopls (recommended; `claude mcp add gopls -- gopls mcp`, needs gopl
 - [internal/db/AGENTS.md](internal/db/AGENTS.md): burrow-G's own SQLite index, bookmarks, and the versioned patch chain
 - [internal/command/AGENTS.md](internal/command/AGENTS.md): command bar engine, one file per command, events back to the TUI
 - [internal/tui/AGENTS.md](internal/tui/AGENTS.md): Bubble Tea app, components, themes, background jobs
+- [internal/transcript/AGENTS.md](internal/transcript/AGENTS.md): export and handoff: Markdown renderer, secret masking, the 100 KB prompt budget
 - [docs/bubbletea-cheatsheet.md](docs/bubbletea-cheatsheet.md): Bubble Tea from scratch, walked through this codebase
 
 _Drafted by /audit from the repo, worth a quick human pass. Edit freely: once a line stops matching this draft, later runs treat it as curated and will flag rather than overwrite it._

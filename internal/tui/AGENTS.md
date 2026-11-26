@@ -2,18 +2,18 @@
 
 ## Overview
 
-The Bubble Tea app: an agents pane, a sessions pane with search, a details box, a status bar and the `ctrl+k` command bar. `Run` returns the session to resume in this terminal (or nil), and `cmd/burrow-g/main.go` does the resume after the UI exits. New to Bubble Tea? Read `docs/bubbletea-cheatsheet.md`.
+The Bubble Tea app: an agents pane, a sessions pane with search, a details box, a status bar and the `ctrl+k` command bar. `Run` returns a `Launch` (session, argv, report) to run in this terminal, a resume or a handoff, or nil; `cmd/burrow-g/main.go` prints the report and runs it after the UI exits. New to Bubble Tea? Read `docs/bubbletea-cheatsheet.md`.
 
 ## Key files
 
 | File | Owns |
 |---|---|
 | `app.go` | `model`, `Update` (key routing), `apply` (command events), `Run` |
-| `commands.go` | background jobs (`tea.Cmd`): refresh, open tab, bookmark |
+| `commands.go` | background jobs (`tea.Cmd`): refresh, open tab, bookmark, export, handoff targets (`findTargets`), handoff prompt |
 | `messages.go` | messages the app sends itself (`refreshedMsg`, …) |
 | `keys.go`, `layout.go` | key bindings, sizing of panes |
 | `background.go` | sets the terminal background for the theme, restores it on exit |
-| `components/<name>/model.go` | agentlist, sessionlist, details, statusbar, commandbar; each its own model |
+| `components/<name>/model.go` | agentlist, sessionlist, details, statusbar, commandbar, agentpicker (handoff dialog); each its own model |
 | `theme/palettes.go`, `theme/theme.go` | 17 palettes; `theme.Get` turns one into styles |
 | `theme/env.go`, `theme/looks.go`, `theme/glyphs.go`, `theme/layout.go` | color depth and locale (`theme.Env`), the shared 16 color and no color looks, Unicode and ASCII glyph sets, layout sizes |
 | `ui/` | shared drawing pieces (`Row`, `PaneHeader`, `KeyHints`, `StatusDot`, `Dialog`, `EmptyState`, …), each drawn from a `theme.Theme` |
@@ -21,7 +21,7 @@ The Bubble Tea app: an agents pane, a sessions pane with search, a details box, 
 ## Conventions
 
 - Design system: draw everything to `docs/design.md` (tokens, glyphs, primitives, states, copy). Colors, symbols and sizes live only in `theme/`; outside it, code draws through `ui` and theme styles and never names a color or a literal glyph (review enforces this; the `rg` check is in `docs/design.md`).
-- Only the jobs in `commands.go` touch the database or agents' files, and they run as `tea.Cmd`, never inside `Update`. Each returns a message from `messages.go` carrying its error.
+- Only the jobs in `commands.go` touch the database or agents' files, and they run as `tea.Cmd`, never inside `Update`. Each returns a message from `messages.go` carrying its error. PATH lookups too: handoff targets come from `findTargets` at startup and on refresh, kept in the shared `sel` state the command bar reads.
 - Components keep their own messages (e.g. `agentlist.SelectedMsg`) and own `Update`; the app forwards keys to the focused pane.
 - The open command bar takes every key first; `ctrl+c` always quits.
 - Errors go to the status bar (`m.status.Error`), never panics or prints.
