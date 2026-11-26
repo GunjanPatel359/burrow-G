@@ -49,17 +49,6 @@ func Prompt(t session.Transcript) (string, Stats) {
 	}
 }
 
-// clean drops control characters other than newline and tab: a NUL can't
-// pass through exec, and the others only garble the target's input.
-func clean(s string) string {
-	return strings.Map(func(r rune) rune {
-		if r == '\n' || r == '\t' || (r >= 0x20 && r != 0x7f) {
-			return r
-		}
-		return -1
-	}, s)
-}
-
 func firstUser(msgs []session.Message) int {
 	for i, m := range msgs {
 		if m.Role == "user" {

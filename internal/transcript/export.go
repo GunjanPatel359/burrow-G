@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/GunjanPatel359/burrow-G/internal/helpers"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
@@ -33,16 +34,21 @@ func SaveExport(home string, s session.Session, md string) (string, error) {
 }
 
 // WritePrivate writes a file only its owner can read, since exports can
-// hold private conversation. An existing file is narrowed to 0600 before
-// anything is written into it; a device such as /dev/stdout is left as is.
+// hold private conversation. An existing file is narrowed to 0600 before it
+// is emptied or written, so a file we may not change is left whole. Paths
+// under /dev (such as /dev/stdout, even when it leads to a file) keep their mode.
 func WritePrivate(path, data string) error {
-	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o600)
+	f, err := os.OpenFile(path, os.O_WRONLY|os.O_CREATE, 0o600)
 	if err != nil {
 		return err
 	}
 	info, err := f.Stat()
-	if err == nil && info.Mode().IsRegular() {
+	device := strings.HasPrefix(filepath.Clean(path), "/dev/")
+	if err == nil && info.Mode().IsRegular() && !device {
 		err = f.Chmod(0o600)
+	}
+	if err == nil && info.Mode().IsRegular() {
+		err = f.Truncate(0)
 	}
 	if err == nil {
 		_, err = f.WriteString(data)

@@ -122,3 +122,13 @@ func TestMarkdown_CutsToolArgumentsAfterMasking(t *testing.T) {
 		t.Errorf("long argument not cut to 120:\n%s", got)
 	}
 }
+
+func TestMarkdown_DropsControlBytes(t *testing.T) {
+	tr := sample()
+	tr.Session.Title = "title\x1b]0;pwned\x07"
+	tr.Messages[1].Text = "colors \x1b[31mred\x1b[0m\tand tab"
+	got, _ := Markdown(tr, time.Time{})
+	if strings.ContainsAny(got, "\x1b\x07") || !strings.Contains(got, "colors [31mred[0m\tand tab") {
+		t.Errorf("control bytes left in: %q", got)
+	}
+}

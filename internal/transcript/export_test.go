@@ -56,3 +56,16 @@ func TestSaveExport(t *testing.T) {
 		}
 	}
 }
+
+func TestWritePrivate_ShorterContentReplacesLonger(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "s.md")
+	if err := WritePrivate(path, "a much longer first export"); err != nil {
+		t.Fatal(err)
+	}
+	if err := WritePrivate(path, "short"); err != nil {
+		t.Fatal(err)
+	}
+	if data, _ := os.ReadFile(path); string(data) != "short" {
+		t.Errorf("content = %q, want the old text gone", data)
+	}
+}

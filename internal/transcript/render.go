@@ -29,13 +29,13 @@ func CheckMessages(t session.Transcript) error {
 	return nil
 }
 
-// Markdown renders the whole transcript, masked but never trimmed.
+// Markdown renders the whole transcript, masked and cleaned but never trimmed.
 func Markdown(t session.Transcript, now time.Time) (string, Stats) {
 	var r redactor
 	var b strings.Builder
-	b.WriteString(r.mask(header(t, now)))
+	b.WriteString(clean(r.mask(header(t, now))))
 	for _, m := range t.Messages {
-		b.WriteString(block(m, &r))
+		b.WriteString(clean(block(m, &r)))
 	}
 	out := b.String()
 	return out, Stats{Messages: len(t.Messages), Bytes: len(out), Masked: r.count, Skipped: t.Skipped}
@@ -134,4 +134,16 @@ func argString(v any) string {
 		return strings.Join(words, " ")
 	}
 	return ""
+}
+
+// clean drops control characters other than newline and tab: a NUL can't
+// pass through exec, and an escape sequence printed by export could drive
+// the reader's terminal.
+func clean(s string) string {
+	return strings.Map(func(r rune) rune {
+		if r == '\n' || r == '\t' || (r >= 0x20 && r != 0x7f) {
+			return r
+		}
+		return -1
+	}, s)
 }
