@@ -255,11 +255,17 @@ out. Export files are readable only by you.
 
 A handoff starts a **new** session in the target agent; it doesn't replay the old one, so
 the agent only knows what the transcript says. burrow-G writes nothing into any agent's
-files; the target agent saves its new session itself. Before the transcript leaves, AWS,
-GitHub, OpenAI, Anthropic and Slack keys, `Bearer` tokens and PEM private keys are replaced
-with `[redacted]` (best effort: a password typed in plain words still goes across). When a
-session is over 100 KB, the first prompt and the newest messages are kept and the middle is
-replaced with one `[N messages omitted]` line. A one line report says what was sent.
+files; the target agent saves its new session itself. Before the transcript leaves, keys
+with a known shape are replaced with `[redacted]`: AWS (access key ids, and secret keys
+next to their name), GitHub, GitLab, npm, OpenAI, Anthropic, Stripe, Google and Slack keys,
+JWTs, `Bearer` tokens and PEM private keys. This is best effort: a password typed in plain
+words still goes across. When a session is over 100 KB, the first prompt and the newest
+messages are kept and the middle is replaced with one `[N messages omitted]` line. A one
+line report says what was sent.
+
+The prompt is passed to the agent as a command line argument, the only way every agent
+accepts a first prompt. On a machine shared with other users, they can read it (`ps`,
+`/proc/<pid>/cmdline`) while the agent runs.
 
 ## Roadmap
 

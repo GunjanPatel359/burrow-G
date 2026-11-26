@@ -78,7 +78,7 @@ Consecutive records with the same role are merged into one `Message` (Claude wri
 | Agent | argv |
 |---|---|
 | Claude | `claude <prompt>` |
-| Qoder | unverified: `/develop` confirms the real `qodercli` first prompt flag before wiring it (T5) |
+| Qoder | `qodercli -i <prompt>` (`--prompt-interactive`, from Qoder's CLI reference) |
 | OpenCode | `opencode --prompt <prompt>` |
 | Copilot | `copilot -i <prompt>` |
 | Codex | `codex <prompt>` |
@@ -158,7 +158,7 @@ Time shows as local `2006-01-02 15:04`, and the ` · <time>` part is left out wh
 - The first user message is always kept in a handoff prompt (cut with `[truncated]` only if it alone exceeds the budget).
 - A handoff with zero messages, a missing folder, or a missing target CLI launches nothing.
 
-**Security model**: local, single user tool. Everything runs as the person who started burrow-G; under `sudo` it uses root's home and sessions (existing rule) and never opens a tab. Export files may contain private conversation, so they are written 0600 in a 0700 folder. Transcripts leaving for another vendor are masked first (AC-7). Masking is best effort on known shapes; it is not a guarantee, and the report says how many it caught. No compliance scope applies.
+**Security model**: local, single user tool. Everything runs as the person who started burrow-G; under `sudo` it uses root's home and sessions (existing rule) and never opens a tab. Export files may contain private conversation, so they are written 0600 in a 0700 folder. Transcripts leaving for another vendor are masked first (AC-7). Masking is best effort on known shapes; it is not a guarantee, and the report says how many it caught (only in what was sent). The prompt travels as a command line argument, the one first prompt channel every agent accepts, so on a machine shared with other users it is readable through `ps` and `/proc/<pid>/cmdline` while the target runs; the README says so. Export paths are built only from an id that names a file inside the exports folder. No compliance scope applies.
 
 **Configuration required**: none. The 100,000 byte budget is a constant in `internal/transcript/budget.go`.
 
@@ -209,7 +209,7 @@ Ordered as a Tracer Bullet (no build approach is recorded for this project, so t
 
 - [x] Confirm Qoder's first prompt flag before T5 wires `StartCommand` (`qodercli` is not installed on the machine this was designed on). Settled from Qoder's CLI reference: `-i` / `--prompt-interactive` runs the prompt, then stays interactive.
 - [x] Confirm `opencode --prompt` opens the interactive TUI with the prompt already sent (not only filled in), and that GNOME Terminal's `OpenTab` passes a 100 KB argument intact; if not, handoff for that path falls back to this terminal. Both settled in verify: OpenCode (offline run) shows the prompt as the first message of a new session, and a real GNOME tab passed a 99,768 byte prompt byte for byte.
-- [ ] After the build, `/sync` should record in `internal/agents/AGENTS.md` that adding an agent now also means `transcript.go` (`Transcript`, `StartCommand`), and add `internal/transcript/` to the root `AGENTS.md` key files.
+- [x] After the build, `/sync` should record in `internal/agents/AGENTS.md` that adding an agent now also means `transcript.go` (`Transcript`, `StartCommand`), and add `internal/transcript/` to the root `AGENTS.md` key files. Done in `internal/agents/AGENTS.md` (convention and key files); root `AGENTS.md` has no key files table, so nothing was added there.
 - [ ] Revisit Option 2 (native import into OpenCode and Copilot) only if people ask for handed off history inside those agents' own pickers.
 - [ ] Lineage (recording that session B came from session A) was left out of v1; it needs a numbered patch and a way to learn the new session's id after the target saves it.
 
