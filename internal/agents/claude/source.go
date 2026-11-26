@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/GunjanPatel359/burrow-G/internal/portable"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
 
@@ -52,4 +53,29 @@ func (Source) ResumeCommand(s session.Session) []string {
 
 func (Source) Delete(s session.Session, trashDir string) error {
 	return errors.New("not implemented")
+}
+
+// Export reads the session's JSONL file itself: Claude has no structured
+// export of its own (/export saves the terminal view). The reader is in
+// export.go.
+func (c Source) Export(s session.Session, w *portable.Writer) error {
+	path, err := c.sessionFile(s.ID)
+	if err != nil {
+		return err
+	}
+	title, cwd, err := parseFile(path)
+	if err != nil {
+		return err
+	}
+	live, meta, err := liveLines(path)
+	if err != nil {
+		return err
+	}
+	if err := w.Header(portable.Header{
+		Agent: "claude", ID: s.ID, Title: title, Dir: cwd,
+		Created: meta.created, Updated: meta.updated,
+	}); err != nil {
+		return err
+	}
+	return writeRecords(path, live, w)
 }

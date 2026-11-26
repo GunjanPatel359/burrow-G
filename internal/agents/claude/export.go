@@ -12,11 +12,10 @@ import (
 
 	"github.com/GunjanPatel359/burrow-G/internal/helpers"
 	"github.com/GunjanPatel359/burrow-G/internal/portable"
-	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
 
-// Claude has no structured export of its own (/export saves the terminal
-// view), so Export reads the session's JSONL file itself.
+// The reader behind Source.Export (in source.go): two passes over a
+// session's JSONL file.
 
 // exportLine is the part of a Claude JSONL line export needs.
 type exportLine struct {
@@ -50,28 +49,6 @@ type exportMessage struct {
 
 type fileMeta struct {
 	created, updated time.Time
-}
-
-func (c Source) Export(s session.Session, w *portable.Writer) error {
-	path, err := c.sessionFile(s.ID)
-	if err != nil {
-		return err
-	}
-	title, cwd, err := parseFile(path)
-	if err != nil {
-		return err
-	}
-	live, meta, err := liveLines(path)
-	if err != nil {
-		return err
-	}
-	if err := w.Header(portable.Header{
-		Agent: "claude", ID: s.ID, Title: title, Dir: cwd,
-		Created: meta.created, Updated: meta.updated,
-	}); err != nil {
-		return err
-	}
-	return writeRecords(path, live, w)
 }
 
 // sessionFile finds projects/*/<id>.jsonl the way List found it. The id goes
