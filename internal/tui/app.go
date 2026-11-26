@@ -49,7 +49,7 @@ type model struct {
 
 	focus    pane
 	agent    session.Source
-	chosen   *session.Session
+	launch   *Launch
 	terminal launch.Terminal      // nil when new tabs aren't supported
 	paint    func(lipgloss.Color) // sets the terminal background; nil in tests
 
@@ -108,9 +108,17 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 	return m
 }
 
-// Run shows the TUI and returns the session to resume, or nil.
+// Launch is what to start in this terminal once the TUI exits: a session to
+// resume, or an agent to continue one in.
+type Launch struct {
+	Dir   string   // the session's folder
+	Argv  []string // ResumeCommand or StartCommand
+	Title string
+}
+
+// Run shows the TUI and returns what to start in this terminal, or nil.
 // version is stamped into exports.
-func Run(store *db.DB, sources []session.Source, home string, term launch.Terminal, version string) (*session.Session, error) {
+func Run(store *db.DB, sources []session.Source, home string, term launch.Terminal, version string) (*Launch, error) {
 	env := theme.DetectEnv(lipgloss.DefaultRenderer().Output().EnvColorProfile(), os.Getenv)
 	lipgloss.SetColorProfile(env.Depth.Profile())
 	bg := newBackground()
@@ -124,7 +132,7 @@ func Run(store *db.DB, sources []session.Source, home string, term launch.Termin
 	if err != nil {
 		return nil, err
 	}
-	return final.(model).chosen, nil
+	return final.(model).launch, nil
 }
 
 func (m model) Init() tea.Cmd {
@@ -247,7 +255,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		case m.focus == sessionPane && (key.Matches(msg, keys.Enter) || key.Matches(msg, keys.Here)):
 			if s, ok := m.sessions.Selected(); ok {
-				m.chosen = &s
+				m.launch = &Launch{Dir: s.Dir, Argv: m.agent.ResumeCommand(s), Title: s.Title}
 				return m, tea.Quit
 			}
 			return m, nil

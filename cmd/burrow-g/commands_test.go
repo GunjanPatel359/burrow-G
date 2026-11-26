@@ -48,6 +48,7 @@ type fakeSource struct {
 func (f fakeSource) Name() string                           { return f.name }
 func (f fakeSource) List() ([]session.Session, error)       { return f.list, f.err }
 func (f fakeSource) ResumeCommand(session.Session) []string { return nil }
+func (f fakeSource) StartCommand(string) []string           { return nil }
 func (f fakeSource) Delete(session.Session, string) error   { return nil }
 func (fakeSource) Export(session.Session, *portable.Writer) error {
 	return session.ErrUnsupported

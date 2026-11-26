@@ -14,3 +14,10 @@ func TestResumeCommand(t *testing.T) {
 		t.Errorf("got %v, want %v", got, want)
 	}
 }
+
+// The command each CLI's --help documents for a first prompt (spec 0004).
+func TestStartCommand(t *testing.T) {
+	if got, want := (Source{}).StartCommand("hi"), []string{"claude", "hi"}; !slices.Equal(got, want) {
+		t.Errorf("StartCommand() = %q, want %q", got, want)
+	}
+}

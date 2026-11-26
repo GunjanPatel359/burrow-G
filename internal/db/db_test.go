@@ -177,6 +177,7 @@ type fakeSource struct {
 func (fakeSource) Name() string                           { return "claude" }
 func (f fakeSource) List() ([]session.Session, error)     { return f.list, f.err }
 func (fakeSource) ResumeCommand(session.Session) []string { return nil }
+func (fakeSource) StartCommand(string) []string           { return nil }
 func (fakeSource) Delete(session.Session, string) error   { return nil }
 func (fakeSource) Export(session.Session, *portable.Writer) error {
 	return session.ErrUnsupported

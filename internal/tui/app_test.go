@@ -3,6 +3,7 @@ package tui
 import (
 	"fmt"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 	"time"
@@ -32,6 +33,7 @@ func (f fakeSource) List() ([]session.Session, error) { return f.list, nil }
 func (f fakeSource) ResumeCommand(s session.Session) []string {
 	return []string{f.name, "--resume", s.ID}
 }
+func (f fakeSource) StartCommand(prompt string) []string  { return []string{f.name, prompt} }
 func (f fakeSource) Delete(session.Session, string) error { return nil }
 func (f fakeSource) Export(s session.Session, w *portable.Writer) error {
 	if f.export == nil {
@@ -152,8 +154,8 @@ func TestEnterMovesFocusThenChooses(t *testing.T) {
 		t.Fatal("enter on agents should focus the sessions pane")
 	}
 	m, cmd := press(m, enter)
-	if m.chosen == nil || m.chosen.ID != "aaa" || !quits(cmd) {
-		t.Errorf("enter on a session should choose it and quit; chosen = %+v", m.chosen)
+	if l := m.launch; l == nil || l.Title != "From files" || !slices.Equal(l.Argv, []string{"claude", "--resume", "aaa"}) || !quits(cmd) {
+		t.Errorf("enter on a session should launch its resume and quit; launch = %+v", m.launch)
 	}
 }
 
@@ -210,7 +212,7 @@ func TestEnterOpensNewTabAndStaysOpen(t *testing.T) {
 
 	m, _ = press(m, enter)
 	m, cmd := press(m, enter)
-	if m.chosen != nil {
+	if m.launch != nil {
 		t.Fatal("with a terminal, enter must not choose a session to resume here")
 	}
 	for _, msg := range run(cmd) {
@@ -235,8 +237,8 @@ func TestOResumesHere(t *testing.T) {
 
 	m, _ = press(m, enter)
 	m, cmd := press(m, tea.KeyMsg{Type: tea.KeyRunes, Runes: []rune("o")})
-	if m.chosen == nil || m.chosen.ID != "aaa" || !quits(cmd) {
-		t.Errorf("o should resume here; chosen = %+v", m.chosen)
+	if l := m.launch; l == nil || l.Dir != "/tmp" || !slices.Equal(l.Argv, []string{"claude", "--resume", "aaa"}) || !quits(cmd) {
+		t.Errorf("o should resume here; launch = %+v", m.launch)
 	}
 }
 
