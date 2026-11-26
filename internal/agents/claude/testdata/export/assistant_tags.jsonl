@@ -1,0 +1,2 @@
+{"type":"user","uuid":"u1","parentUuid":null,"isSidechain":false,"timestamp":"2026-11-01T10:00:00Z","cwd":"/tmp/p","sessionId":"tags","message":{"role":"user","content":"which tags does Claude Code inject?"}}
+{"type":"assistant","uuid":"a1","parentUuid":"u1","isSidechain":false,"timestamp":"2026-11-01T10:00:01Z","cwd":"/tmp/p","sessionId":"tags","message":{"id":"m1","role":"assistant","model":"claude-test","content":[{"type":"text","text":"It adds <system-reminder>notes</system-reminder> and <command-name>/x</command-name>."}]}}

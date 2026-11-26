@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/GunjanPatel359/burrow-G/internal/db/patches"
+	"github.com/GunjanPatel359/burrow-G/internal/portable"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
 
@@ -177,6 +178,9 @@ func (fakeSource) Name() string                           { return "claude" }
 func (f fakeSource) List() ([]session.Session, error)     { return f.list, f.err }
 func (fakeSource) ResumeCommand(session.Session) []string { return nil }
 func (fakeSource) Delete(session.Session, string) error   { return nil }
+func (fakeSource) Export(session.Session, *portable.Writer) error {
+	return session.ErrUnsupported
+}
 
 func TestRefresh(t *testing.T) {
 	d := openTest(t)

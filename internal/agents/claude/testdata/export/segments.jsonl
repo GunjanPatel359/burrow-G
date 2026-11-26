@@ -1,0 +1,12 @@
+{"type":"user","uuid":"u1","parentUuid":null,"isSidechain":false,"timestamp":"2026-11-01T10:00:00Z","cwd":"/tmp/p","sessionId":"seg","message":{"role":"user","content":"first"}}
+{"type":"assistant","uuid":"x1","parentUuid":"u1","isSidechain":false,"timestamp":"2026-11-01T10:00:01Z","cwd":"/tmp/p","sessionId":"seg","message":{"id":"mx","role":"assistant","model":"claude-test","content":[{"type":"text","text":"abandoned"}]}}
+{"type":"assistant","uuid":"a1","parentUuid":"u1","isSidechain":false,"timestamp":"2026-11-01T10:00:02Z","cwd":"/tmp/p","sessionId":"seg","message":{"id":"m1","role":"assistant","model":"claude-test","content":[{"type":"text","text":"one"}]}}
+{"type":"attachment","uuid":"t1","parentUuid":"a1","isSidechain":false,"timestamp":"2026-11-01T10:00:03Z","cwd":"/tmp/p","sessionId":"seg","attachment":{"type":"todo"}}
+not json
+{"type":"system","subtype":"compact_boundary","uuid":"b1","parentUuid":null,"logicalParentUuid":"t2","isSidechain":false,"timestamp":"2026-11-01T10:00:05Z","cwd":"/tmp/p","sessionId":"seg","content":"Conversation compacted"}
+{"type":"user","uuid":"s1","parentUuid":"b1","isSidechain":false,"isCompactSummary":true,"timestamp":"2026-11-01T10:00:06Z","cwd":"/tmp/p","sessionId":"seg","message":{"role":"user","content":"Summary text\n\n<system-reminder>\n<tools-used-before-summary>Bash</tools-used-before-summary>\n</system-reminder>"}}
+{"type":"attachment","uuid":"t2","parentUuid":"s1","isSidechain":false,"timestamp":"2026-11-01T10:00:07Z","cwd":"/tmp/p","sessionId":"seg","attachment":{"type":"todo"}}
+{"type":"user","uuid":"u2","parentUuid":"t2","isSidechain":false,"timestamp":"2026-11-01T10:00:08Z","cwd":"/tmp/p","sessionId":"seg","message":{"role":"user","content":"second"}}
+{"type":"assistant","uuid":"a2","parentUuid":"u2","isSidechain":false,"timestamp":"2026-11-01T10:00:09Z","cwd":"/tmp/p","sessionId":"seg","message":{"id":"m2","role":"assistant","model":"claude-test","content":[{"type":"text","text":"two"}]}}
+{"type":"user","uuid":"sc1","parentUuid":"a2","isSidechain":true,"timestamp":"2026-11-01T10:00:10Z","cwd":"/tmp/p","sessionId":"seg","message":{"role":"user","content":"side"}}
+{"type":"last-prompt","lastPrompt":"second","leafUuid":"a2","sessionId":"seg"}

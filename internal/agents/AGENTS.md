@@ -11,14 +11,15 @@ Each folder here reads one agent CLI's sessions and turns them into the shared `
 | `internal/session/session.go` | `Session`, `Source` interface, `ErrMissing`, `Sort` |
 | `claude/`, `qoder/` | JSONL files under `~/.claude/projects/*/` and `~/.qoder/projects/*/`; `parse.go` reads title and folder |
 | `opencode/source.go` | `~/.local/share/opencode/opencode.db`, table `session_v2` or `session` |
-| `copilot/source.go` | `~/.copilot/session-store.db`, table `sessions` |
+| `copilot/source.go` | `~/.copilot/session-store.db`, table `sessions`; `Export` reads `~/.copilot/session-state/<id>/events.jsonl` |
 | `codex/source.go` | `~/.codex/sessions/**/rollout-*.jsonl` plus `session_index.jsonl` thread names |
 
 ## Conventions
 
-- Adding an agent: new folder with `source.go` (`Name`, `List`, `ResumeCommand`, `Delete`), a test file with `var _ session.Source = Source{}`, then add it to `sources` in `cmd/burrow-g/main.go` and the README table.
+- Adding an agent: new folder with `source.go` (`Name`, `List`, `ResumeCommand`, `Delete`, `Export`), a test file with `var _ session.Source = Source{}`, then add it to `sources` in `cmd/burrow-g/main.go` and the README table.
 - `Name()` is the stable key stored in the index (`claude`, `qoder`, …). Never rename it.
 - Read only, always. SQLite opens as `file:<path>?mode=ro`. `Delete` returns a "not implemented" error for now.
+- `Export` writes the portable format (spec 0003): the agent's own structured export if it has one, else an inline reader in the agent's package. Return `session.ErrUnsupported` until then. Every `Source` method, `Export` included, lives in the agent's `source.go`; a long reader behind it goes in one `export.go` (Claude), like `parse.go` behind `List`.
 - Parsers stop reading a file as soon as they have title and folder. Title order: the agent's own title (Claude `/rename` sidecar, ai-title, thread name), then the first prompt, then `(untitled)`.
 - Skip unreadable or folderless files instead of failing the whole list.
 - Tests build fixtures in `testdata/` or a temp SQLite file with only the columns `List` reads.

@@ -2,8 +2,10 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -15,6 +17,7 @@ import (
 	"github.com/GunjanPatel359/burrow-G/internal/command/commands"
 	"github.com/GunjanPatel359/burrow-G/internal/command/event"
 	"github.com/GunjanPatel359/burrow-G/internal/db"
+	"github.com/GunjanPatel359/burrow-G/internal/helpers"
 	"github.com/GunjanPatel359/burrow-G/internal/launch"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 	"github.com/GunjanPatel359/burrow-G/internal/tui/components/agentlist"
@@ -52,6 +55,10 @@ type model struct {
 
 	width, height int
 
+	home    string // for showing paths with ~
+	exports string // folder `e` writes exports to
+	version string // burrow-G version, stamped into exports
+
 	saved   string   // theme to go back to when a preview ends
 	help    []string // help text lines; nil when hidden
 	helpTop int
@@ -76,6 +83,8 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 	m := model{
 		store:    store,
 		sources:  sources,
+		home:     home,
+		exports:  filepath.Join(helpers.DataDir(home), "exports"),
 		theme:    t,
 		env:      env,
 		saved:    t.Name,
@@ -100,12 +109,14 @@ func newModel(store *db.DB, sources []session.Source, home string, term launch.T
 }
 
 // Run shows the TUI and returns the session to resume, or nil.
-func Run(store *db.DB, sources []session.Source, home string, term launch.Terminal) (*session.Session, error) {
+// version is stamped into exports.
+func Run(store *db.DB, sources []session.Source, home string, term launch.Terminal, version string) (*session.Session, error) {
 	env := theme.DetectEnv(lipgloss.DefaultRenderer().Output().EnvColorProfile(), os.Getenv)
 	lipgloss.SetColorProfile(env.Depth.Profile())
 	bg := newBackground()
 	defer bg.restore() // before main resumes a session in this terminal
 	m := newModel(store, sources, home, term, env, bg.dark)
+	m.version = version
 	m.paint = bg.set
 	m.paint(m.theme.Background)
 
@@ -134,7 +145,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	switch msg := msg.(type) {
-	case spinner.TickMsg:
+	case spinner.TickMsg, statusbar.FadedMsg:
 		var cmd tea.Cmd
 		m.status, cmd = m.status.Update(msg)
 		return m, cmd
@@ -151,7 +162,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if msg.err != nil {
 				m.status.Error(msg.err)
 			} else {
-				m.status.OK("refreshed")
+				return m, m.status.OK("refreshed")
 			}
 		}
 		return m, nil
@@ -159,8 +170,18 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case openedMsg:
 		if msg.err != nil {
 			m.status.Error(msg.err)
-		} else {
-			m.status.OK(fmt.Sprintf("opened %q in a new tab", msg.title))
+			return m, nil
+		}
+		return m, m.status.OK(fmt.Sprintf("opened %q in a new tab", msg.title))
+
+	case exportedMsg:
+		switch {
+		case errors.Is(msg.err, session.ErrUnsupported):
+			m.status.Error(fmt.Errorf("export isn't supported for %s yet", agentlist.DisplayName(msg.agent)))
+		case msg.err != nil:
+			m.status.Error(msg.err)
+		default:
+			return m, m.status.OK(fmt.Sprintf("exported %q", msg.title))
 		}
 		return m, nil
 
@@ -175,11 +196,9 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.syncDetails()
 		}
 		if msg.on {
-			m.status.OK(fmt.Sprintf("bookmarked %q", msg.s.Title))
-		} else {
-			m.status.OK(fmt.Sprintf("removed bookmark from %q", msg.s.Title))
+			return m, m.status.OK(fmt.Sprintf("bookmarked %q", msg.s.Title))
 		}
-		return m, nil
+		return m, m.status.OK(fmt.Sprintf("removed bookmark from %q", msg.s.Title))
 
 	case agentlist.SelectedMsg:
 		return m, m.selectAgent(msg.Name)
@@ -237,6 +256,12 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, bookmark(m.store, s, !s.Bookmarked)
 			}
 			return m, nil
+		case m.focus == sessionPane && key.Matches(msg, keys.Export) && m.agent != nil:
+			if s, ok := m.sessions.Selected(); ok {
+				busy := m.status.Busy("exporting" + m.theme.Glyph.Ellipsis)
+				return m, tea.Batch(busy, export(m.agent, s, m.exports, m.version))
+			}
+			return m, nil
 		case m.focus == sessionPane && key.Matches(msg, keys.Left) && !m.sessions.Filtered():
 			m.setFocus(agentPane)
 			return m, nil
@@ -262,7 +287,7 @@ func (m *model) apply(e event.Event) tea.Cmd {
 		m.setTheme(theme.Get(e.Name, m.env))
 		if !e.Preview {
 			m.saved = e.Name
-			m.status.OK(themeSaved(e.Name, m.env))
+			return m.status.OK(themeSaved(e.Name, m.env))
 		}
 	case event.Refresh:
 		if m.agent == nil {

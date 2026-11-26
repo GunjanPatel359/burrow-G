@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/GunjanPatel359/burrow-G/internal/helpers"
+	"github.com/GunjanPatel359/burrow-G/internal/portable"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
 
@@ -144,4 +145,21 @@ func threadNames(path string) map[string]string {
 		}
 	}
 	return names
+}
+
+// Export reads the session's rollout file itself: Codex has no export
+// command. The reader is in export.go.
+func (c Source) Export(s session.Session, w *portable.Writer) error {
+	path, err := c.rolloutFile(s.ID)
+	if err != nil {
+		return err
+	}
+	h, err := c.header(path, s.ID)
+	if err != nil {
+		return err
+	}
+	if err := w.Header(h); err != nil {
+		return err
+	}
+	return writeRollout(path, w)
 }

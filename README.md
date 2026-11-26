@@ -104,6 +104,7 @@ burrow-g help            show help
 | `enter` / `→` / `tab` | go to its sessions | open in a new tab (or here, see below) |
 | `o` | — | resume in this terminal |
 | `b` | — | bookmark (★) — bookmarked sessions stay at the top |
+| `e` | — | export the session to a file (see below) |
 | `/` | — | search title or folder |
 | `ctrl+k` | commands | commands |
 | `←` / `esc` | — | back to agents |
@@ -112,6 +113,22 @@ burrow-g help            show help
 
 **New tabs** currently work in **GNOME Terminal**. In other terminals (and IDE terminals
 such as GoLand's), `enter` resumes in the current terminal instead.
+
+### Export a session
+
+Press `e` on a session to save it to
+`~/.local/share/burrow-g/exports/<agent>-<id>.jsonl`. The file holds the whole
+conversation in one format for every agent (`burrow-session/1`, see
+[spec 0003](docs/specs/0003-session-export/index.md)): your prompts, the agent's replies, every
+tool call with its full output, and the compaction summaries. Agent bookkeeping and encrypted
+thinking are left out, and the file's last line counts what was left out.
+
+**An export can contain code, file contents and secrets** from the session, exactly as they
+appeared. It is written readable only by you (mode 600, folder 700) and never leaves your
+machine. Think before you share it.
+
+OpenCode sessions are exported with OpenCode's own `opencode session export`, so `opencode`
+must be on your `PATH`; the other agents' files are read directly, and only read.
 
 ### Commands
 
@@ -164,6 +181,9 @@ there, and resumes in the same terminal instead of opening a new tab.
   missing, a refresh leaves its list as it is.
 - Bookmarks live in their own table, so refreshing keeps them. When a bookmarked session is
   deleted, its bookmark goes with it.
+- Each agent's reader also has an `Export` that writes a session in the portable format:
+  through the agent's own export command when it has a structured one (OpenCode), otherwise by
+  reading its files.
 - Resuming changes into the session's folder and replaces burrow-G with the agent's own
   command, so when you quit the agent you are back at your normal prompt.
 - Nothing leaves your machine.

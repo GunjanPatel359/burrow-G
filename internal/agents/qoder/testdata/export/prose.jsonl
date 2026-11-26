@@ -1,0 +1,2 @@
+{"type":"user","uuid":"p1","parentUuid":null,"isSidechain":false,"timestamp":"2026-11-01T10:00:00Z","cwd":"/tmp/p","sessionId":"prose","message":{"role":"user","content":"Please strip <system-reminder> blocks from user text, and keep everything after it."}}
+{"type":"user","uuid":"p2","parentUuid":"p1","isSidechain":false,"timestamp":"2026-11-01T10:00:01Z","cwd":"/tmp/p","sessionId":"prose","message":{"role":"user","content":"The <command-name> tag holds a slash command; keep this sentence."}}

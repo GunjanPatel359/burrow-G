@@ -54,6 +54,7 @@ func (m *model) resize() {
 	m.sessions.SetSize(m.rightWidth(), m.listHeight())
 	m.details.SetWidth(m.rightWidth())
 	m.bar.SetWidth(m.width)
+	m.status.SetWidth(m.width)
 	m.helpTop = min(m.helpTop, max(len(m.help)-m.bodyHeight(), 0))
 }
 

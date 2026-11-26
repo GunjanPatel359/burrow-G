@@ -9,12 +9,16 @@ import (
 
 	_ "modernc.org/sqlite"
 
+	"github.com/GunjanPatel359/burrow-G/internal/portable"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
 
 // Source reads sessions from DBPath, usually ~/.local/share/opencode/opencode.db.
 type Source struct {
 	DBPath string
+	// Run runs a command and returns its output; Export uses it for
+	// OpenCode's own export. nil means export isn't available.
+	Run func(name string, args ...string) ([]byte, error)
 }
 
 func (Source) Name() string { return "opencode" }
@@ -73,4 +77,12 @@ func (Source) ResumeCommand(s session.Session) []string {
 
 func (Source) Delete(s session.Session, trashDir string) error {
 	return errors.New("not implemented")
+}
+
+// Export uses OpenCode's own structured export (export.go).
+func (o Source) Export(s session.Session, w *portable.Writer) error {
+	if o.Run == nil {
+		return session.ErrUnsupported
+	}
+	return export(o.Run, s.ID, w)
 }

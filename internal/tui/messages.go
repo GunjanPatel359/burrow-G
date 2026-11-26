@@ -22,3 +22,11 @@ type bookmarkedMsg struct {
 	on  bool
 	err error
 }
+
+// exportedMsg arrives when a session was exported to path.
+type exportedMsg struct {
+	agent string
+	title string
+	path  string
+	err   error
+}

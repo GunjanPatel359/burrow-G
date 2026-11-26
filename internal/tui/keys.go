@@ -12,7 +12,7 @@ import (
 // Every key the app itself handles. Help keys name arrows ("up", "left");
 // ui.KeyName draws them from the glyph set.
 var keys = struct {
-	Quit, Enter, Here, Right, Left, Refresh, Bookmark, Command key.Binding
+	Quit, Enter, Here, Right, Left, Refresh, Bookmark, Export, Command key.Binding
 }{
 	Quit:     key.NewBinding(key.WithKeys("q", "ctrl+c"), key.WithHelp("q", "quit")),
 	Enter:    key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "resume")),
@@ -21,6 +21,7 @@ var keys = struct {
 	Left:     key.NewBinding(key.WithKeys("left", "shift+tab", "h", "esc"), key.WithHelp("left", "agents")),
 	Refresh:  key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh")),
 	Bookmark: key.NewBinding(key.WithKeys("b"), key.WithHelp("b", "bookmark")),
+	Export:   key.NewBinding(key.WithKeys("e"), key.WithHelp("e", "export")),
 	Command:  key.NewBinding(key.WithKeys("ctrl+k"), key.WithHelp("ctrl+k", "commands")),
 }
 
@@ -38,18 +39,21 @@ var hints = struct {
 	Close:  key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "close")),
 }
 
+// agentHints, like sessionHints, lists the most important first.
 func agentHints() []key.Binding {
 	return []key.Binding{hints.Agent, hints.Open, keys.Refresh, keys.Command, keys.Quit}
 }
 
 // sessionHints depends on whether new tabs are supported in this terminal.
+// Most important first: a narrow status line drops hints from the end, and
+// the way back to agents must stay when only one pane shows.
 func sessionHints(tabs bool) []key.Binding {
 	open := []key.Binding{keys.Enter}
 	if tabs {
 		open = []key.Binding{hints.NewTab, keys.Here}
 	}
 	return slices.Concat([]key.Binding{hints.Move}, open,
-		[]key.Binding{keys.Bookmark, hints.Search, keys.Left, keys.Refresh, keys.Command, keys.Quit})
+		[]key.Binding{keys.Left, hints.Search, keys.Bookmark, keys.Export, keys.Refresh, keys.Command, keys.Quit})
 }
 
 func helpViewHints() []key.Binding {

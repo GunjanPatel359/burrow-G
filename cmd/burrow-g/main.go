@@ -61,7 +61,7 @@ func main() {
 	sources := []session.Source{
 		claude.Source{Home: filepath.Join(home, ".claude")},
 		qoder.Source{Home: filepath.Join(home, ".qoder")},
-		opencode.Source{DBPath: filepath.Join(home, ".local", "share", "opencode", "opencode.db")},
+		opencode.Source{DBPath: filepath.Join(home, ".local", "share", "opencode", "opencode.db"), Run: opencode.Exec},
 		copilot.Source{DBPath: filepath.Join(home, ".copilot", "session-store.db")},
 		codex.Source{Home: filepath.Join(home, ".codex")},
 	}
@@ -91,7 +91,7 @@ func main() {
 		if sudoUser != "" {
 			term = nil // a root terminal can't open tabs in the user's desktop
 		}
-		chosen, err := tui.Run(store, sources, home, term)
+		chosen, err := tui.Run(store, sources, home, term, version)
 		if err != nil {
 			fail(err)
 		}

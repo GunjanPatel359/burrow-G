@@ -4,9 +4,11 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	"github.com/charmbracelet/bubbles/spinner"
+	"github.com/charmbracelet/x/ansi"
 
 	"github.com/GunjanPatel359/burrow-G/internal/tui/theme"
 )
@@ -68,5 +70,53 @@ func TestSpinner(t *testing.T) {
 	m.Busy("refreshing...")
 	if _, cmd := m.Update(tick.(spinner.TickMsg)); cmd != nil {
 		t.Error("a tick from an earlier spinner should be dropped")
+	}
+}
+
+func TestOKFades(t *testing.T) {
+	FadeAfter = time.Millisecond
+	m := New(theme.Get(theme.Default, theme.Env{}))
+	cmd := m.OK("exported")
+	if cmd == nil {
+		t.Fatal("OK returned no fade command")
+	}
+	m, _ = m.Update(cmd())
+	if strings.Contains(m.View(), "exported") {
+		t.Errorf("view still shows the message after it faded: %q", m.View())
+	}
+}
+
+func TestFadeKeepsNewerStatus(t *testing.T) {
+	FadeAfter = time.Millisecond
+	m := New(theme.Get(theme.Default, theme.Env{}))
+	old := m.OK("refreshed")
+	m.OK("bookmarked")
+	m, _ = m.Update(old())
+	if !strings.Contains(m.View(), "bookmarked") {
+		t.Errorf("an older fade cleared a newer message: %q", m.View())
+	}
+
+	fade := m.OK("refreshed")
+	m.Error(errors.New("disk full"))
+	m, _ = m.Update(fade())
+	if !strings.Contains(m.View(), "disk full") {
+		t.Errorf("a fade cleared an error: %q", m.View())
+	}
+}
+
+// The hints stay where they are when a message comes and goes.
+func TestHintsStayPut(t *testing.T) {
+	m := New(theme.Get(theme.Default, theme.Env{}))
+	m.SetWidth(80)
+	m.SetHelp(key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit")))
+	at := func() int { // the hint's column in cells, not bytes: "●" is 3 bytes
+		line := ansi.Strip(m.View())
+		return ansi.StringWidth(line[:strings.Index(line, "q quit")])
+	}
+
+	idle := at()
+	m.OK(`exported "a long session title"`)
+	if got := at(); got != idle || idle < 0 {
+		t.Errorf("hints at %d with a message, %d without", got, idle)
 	}
 }
