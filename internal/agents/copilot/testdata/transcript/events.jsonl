@@ -1,0 +1,10 @@
+{"type":"session.start","data":{},"timestamp":"2026-11-20T14:00:00Z"}
+{"type":"user.message","data":{"content":"review the app","parentAgentTaskId":"t0","transformedContent":"INJECTED"},"timestamp":"2026-11-20T14:03:00Z"}
+{"type":"hook.start","data":{"hookType":"preToolUse"},"timestamp":"2026-11-20T14:03:01Z"}
+{"type":"assistant.message","data":{"content":"","toolRequests":[{"name":"view"}],"reasoningOpaque":"HIDDEN"},"timestamp":"2026-11-20T14:03:02Z"}
+{"type":"tool.execution_start","data":{"toolName":"view","arguments":{"path":"app.go"}},"timestamp":"2026-11-20T14:03:03Z"}
+{"type":"tool.execution_complete","data":{"result":"TOOL OUTPUT"},"timestamp":"2026-11-20T14:03:04Z"}
+{"type":"tool.execution_start","data":{"toolName":"bash","arguments":{"command":"go vet"},"parentToolCallId":"task1"},"timestamp":"2026-11-20T14:03:05Z"}
+{"type":"session.usage_record","data":{},"timestamp":"2026-11-20T14:03:06Z"}
+{"type":"assistant.message","data":{"content":"Looks good."},"timestamp":"2026-11-20T14:03:07Z"}
+{broken

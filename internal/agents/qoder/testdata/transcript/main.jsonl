@@ -1,0 +1,12 @@
+{"type":"permission-mode","mode":"default"}
+{"type":"user","timestamp":"2026-11-20T14:03:00Z","cwd":"/tmp/proj","message":{"role":"user","content":"make the tests pass"}}
+{"type":"assistant","timestamp":"2026-11-20T14:03:05Z","message":{"role":"assistant","content":[{"type":"thinking","thinking":"SECRET THOUGHTS"}]}}
+{"type":"assistant","timestamp":"2026-11-20T14:03:06Z","message":{"role":"assistant","content":[{"type":"text","text":"Running them now."}]}}
+{"type":"assistant","timestamp":"2026-11-20T14:03:07Z","message":{"role":"assistant","content":[{"type":"tool_use","id":"t1","name":"Bash","input":{"command":"go test ./...","description":"run tests"}}]}}
+{"type":"user","timestamp":"2026-11-20T14:03:09Z","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"TOOL OUTPUT"}]}}
+{"type":"user","timestamp":"2026-11-20T14:03:10Z","isSidechain":true,"message":{"role":"user","content":"SIDECHAIN PROMPT"}}
+{"type":"user","timestamp":"2026-11-20T14:03:11Z","isMeta":true,"message":{"role":"user","content":"META CAVEAT"}}
+{"type":"assistant","timestamp":"2026-11-20T14:03:12Z","message":{"role":"assistant","content":[{"type":"text","text":"All green."}]}}
+this line is not json
+{"type":"user","timestamp":"2026-11-20T14:05:00Z","message":{"role":"user","content":"<command-name>/commit</command-name>\n<command-args></command-args>"}}
+{"type":"user","timestamp":"2026-11-20T14:05:01Z","message":{"role":"user","content":"<local-command-stdout>noise</local-command-stdout>"}}
