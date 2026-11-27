@@ -207,6 +207,16 @@ func TestExport_BrokenMessages(t *testing.T) {
 	}
 }
 
+// A run state cut off between two history messages is an error, not a
+// chat that was never compacted.
+func TestLastSummary_CutOff(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "run-state.json")
+	writeFile(t, path, `{"sessionState":{"mainAgentState":{"messageHistory":[{"role":"user","tags":["USER_PROMPT"],"content":"hi"}`)
+	if _, _, err := lastSummary(path); err == nil {
+		t.Error("want an error for a cut off run-state.json")
+	}
+}
+
 // Freebuff tags the summary it writes; a prompt that only quotes the
 // summary markup stays a message.
 func TestExport_QuotedSummaryIsNotACompaction(t *testing.T) {

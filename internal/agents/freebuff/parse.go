@@ -3,6 +3,7 @@ package freebuff
 import (
 	"encoding/json"
 	"errors"
+	"io"
 	"io/fs"
 	"math"
 	"os"
@@ -140,9 +141,12 @@ func seek(dec *json.Decoder, key string) error {
 	return errNoKey
 }
 
-// expect reads the brace or bracket that starts an object or an array.
+// expect reads the brace or bracket that starts or ends an object or an array.
 func expect(dec *json.Decoder, delim json.Delim) error {
 	tok, err := dec.Token()
+	if errors.Is(err, io.EOF) {
+		return io.ErrUnexpectedEOF
+	}
 	if err != nil {
 		return err
 	}

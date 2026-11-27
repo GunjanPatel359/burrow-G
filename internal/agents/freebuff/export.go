@@ -104,6 +104,11 @@ func writeMessages(dir string, s session.Session, w *portable.Writer) error {
 		}
 		c.message(m, at)
 	}
+	// More stops at the end of the file too, so a file cut off between two
+	// messages only shows here.
+	if err := expect(dec, ']'); err != nil {
+		return err
+	}
 	if !headed {
 		h.Created = h.Updated
 		if err := w.Header(h); err != nil {
@@ -297,6 +302,10 @@ func lastSummary(path string) (string, time.Time, error) {
 		if text, ok := summaryText(m.Content); ok {
 			return text, time.UnixMilli(int64(m.SentAt)).UTC(), nil
 		}
+	}
+	// More stops at the end of the file too, so a cut off file only shows here.
+	if err := expect(dec, ']'); err != nil {
+		return "", time.Time{}, err
 	}
 	return "", time.Time{}, nil
 }
