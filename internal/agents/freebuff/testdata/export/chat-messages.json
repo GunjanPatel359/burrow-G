@@ -1,0 +1,31 @@
+[
+  {"id": "divider-1788174500000", "variant": "ai", "content": "", "blocks": [{"type": "mode-divider", "mode": "LITE"}], "timestamp": "11:08 AM"},
+  {"id": "user-1788174501000", "variant": "user", "content": "fix the login", "timestamp": "11:08 AM",
+   "attachments": [{"path": "/tmp/shot.png", "filename": "shot.png"}], "fileAttachments": [{"path": "/w/db/a.go", "filename": "a.go"}]},
+  {"id": "ai-1788174502000-a1f3", "variant": "ai", "content": "", "timestamp": "11:08 AM", "isComplete": true, "credits": 0, "completionTime": "40s",
+   "metadata": {"runState": {"sessionState": {"mainAgentState": {"messageHistory": [{"role": "user", "content": "copy kept by older versions"}]}}}},
+   "blocks": [
+    {"type": "text", "textType": "reasoning", "content": "look first", "thinkingId": "thinking-1", "thinkingOpen": false},
+    {"type": "text", "textType": "text", "content": "Reading the code."},
+    {"type": "tool", "toolCallId": "t1", "toolName": "read_files", "input": {"paths": ["a.go"]}, "output": "package a", "agentId": "main"},
+    {"type": "tool", "toolCallId": "t2", "toolName": "code_search", "input": {"pattern": "login"}, "output": "a.go:3", "agentId": "main", "includeToolCall": false},
+    {"type": "text", "textType": "text", "content": "Found it. Asking you."},
+    {"type": "ask-user", "toolCallId": "t3", "questions": [{"question": "Which?", "options": [{"label": "A"}]}], "answers": [{"questionIndex": 0, "selectedOption": "A"}]},
+    {"type": "agent", "agentId": "t4-0", "agentType": "basher", "prompt": "run tests", "params": {"command": "go test"}, "status": "complete", "spawnToolCallId": "t4", "spawnIndex": 0,
+     "blocks": [
+      {"type": "text", "textType": "reasoning", "content": "hmm"},
+      {"type": "tool", "toolCallId": "t4-inner", "toolName": "run_terminal_command", "input": {"command": "go test"}, "output": "ok"},
+      {"type": "text", "textType": "text", "content": "ok: 3 passed"}
+     ]},
+    {"type": "text", "textType": "text", "content": "Done."},
+    {"type": "tool", "toolCallId": "t5", "toolName": "run_terminal_command", "input": {"command": "make"}},
+    {"type": "html", "content": "<b>sponsored</b>"}
+   ]},
+  {"id": "user-1788174503000", "variant": "user", "content": "/compact", "timestamp": "11:09 AM"},
+  {"id": "ai-1788174504000-b2c4", "variant": "ai", "content": "", "timestamp": "11:09 AM", "blocks": [{"type": "text", "textType": "text", "content": "Summarized."}]},
+  {"id": "sys-1788174506000", "variant": "ai", "content": "Context compacted. Earlier messages stay here; the agent continues from a summary of them.", "timestamp": "11:09 AM"},
+  {"id": "error-1788174507000", "variant": "error", "content": "The request failed.", "timestamp": "11:09 AM"},
+  {"id": "user-1788174508000", "variant": "user", "content": "thanks", "timestamp": "11:10 AM"},
+  {"id": "user-1788174508500", "variant": "user", "content": 5, "timestamp": "11:10 AM"},
+  {"id": "ai-1788174509000-c3d5", "variant": "ai", "content": "You're welcome.", "timestamp": "11:10 AM"}
+]

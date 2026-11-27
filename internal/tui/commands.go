@@ -19,10 +19,14 @@ import (
 
 // Background jobs. Only these touch the database or the agents' files.
 
-// openTab opens a session in a new terminal tab.
-func openTab(term launch.Terminal, s session.Session, argv []string) tea.Cmd {
+// openTab opens a session in a new terminal tab, after the checks a resume
+// here makes, so their errors show in the status bar, not in the new tab.
+func openTab(term launch.Terminal, s session.Session, argv []string, lookPath func(string) (string, error)) tea.Cmd {
 	return func() tea.Msg {
 		if err := session.CheckDir(s); err != nil {
+			return openedMsg{title: s.Title, err: err}
+		}
+		if _, err := session.CheckCommand(argv[0], lookPath); err != nil {
 			return openedMsg{title: s.Title, err: err}
 		}
 		return openedMsg{title: s.Title, err: term.OpenTab(s.Dir, s.Title, argv)}

@@ -29,6 +29,7 @@ var displayNames = map[string]string{
 	"opencode": "OpenCode",
 	"copilot":  "Copilot CLI",
 	"codex":    "Codex",
+	"freebuff": "Freebuff", // Codebuff chats too; the full name doesn't fit the pane
 }
 
 func DisplayName(agent string) string {

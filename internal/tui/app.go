@@ -300,7 +300,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case m.focus == sessionPane && key.Matches(msg, keys.Enter) && m.terminal != nil:
 			if s, ok := m.sessions.Selected(); ok {
 				busy := m.status.Busy("opening" + m.theme.Glyph.Ellipsis)
-				return m, tea.Batch(busy, openTab(m.terminal, s, m.agent.ResumeCommand(s)))
+				return m, tea.Batch(busy, openTab(m.terminal, s, m.agent.ResumeCommand(s), m.lookPath))
 			}
 			return m, nil
 		case m.focus == sessionPane && (key.Matches(msg, keys.Enter) || key.Matches(msg, keys.Here)):

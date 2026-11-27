@@ -9,6 +9,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
 
 func TestHomeDir(t *testing.T) {
@@ -39,6 +41,15 @@ func TestSudoHint(t *testing.T) {
 	other := errors.New("folder no longer exists")
 	if err := sudoHint(other, "u"); err != other {
 		t.Errorf("other errors: err = %v, want it unchanged", err)
+	}
+}
+
+// The hint must survive the error Resume really returns, not only a
+// hand-built *exec.Error.
+func TestSudoHint_MissingCLIFromResume(t *testing.T) {
+	err := session.Resume(session.Session{Dir: t.TempDir()}, []string{"no-such-agent-cli-xyz"})
+	if err := sudoHint(err, "u"); err == nil || !strings.Contains(err.Error(), "burrow-g setup-sudo") {
+		t.Errorf("under sudo: err = %v, want a PATH hint", err)
 	}
 }
 

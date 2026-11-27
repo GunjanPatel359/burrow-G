@@ -1,6 +1,6 @@
 # burrow-G
 
-One terminal UI that lists and resumes AI coding agent sessions (Claude Code, Qoder, OpenCode, Copilot CLI, Codex) across every project.
+One terminal UI that lists and resumes AI coding agent sessions (Claude Code, Qoder, OpenCode, Copilot CLI, Codex, Freebuff and Codebuff) across every project.
 
 ## Stack
 

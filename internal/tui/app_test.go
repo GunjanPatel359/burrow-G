@@ -2,6 +2,7 @@ package tui
 
 import (
 	"fmt"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strings"
@@ -62,7 +63,9 @@ func testModelWith(t *testing.T, term launch.Terminal, dir string) (model, *db.D
 	qoder := fakeSource{name: "qoder", list: []session.Session{
 		{Agent: "qoder", ID: "qqq", Title: "Qoder work", Dir: "/tmp", LastUsed: time.Now()},
 	}}
-	return newModel(store, []session.Source{claude, qoder}, "/home/u", term, theme.Env{}, alwaysDark), store
+	m := newModel(store, []session.Source{claude, qoder}, "/home/u", term, theme.Env{}, alwaysDark)
+	m.lookPath = func(name string) (string, error) { return "/bin/" + name, nil } // every CLI installed
+	return m, store
 }
 
 var (
@@ -265,6 +268,24 @@ func TestNewTabRefusesMissingFolder(t *testing.T) {
 		t.Errorf("must not open a tab for a missing folder: %q", term.opened)
 	}
 	if !strings.Contains(m.View(), "folder no longer exists") {
+		t.Errorf("status should explain why:\n%s", m.View())
+	}
+}
+
+func TestNewTabRefusesMissingCLI(t *testing.T) {
+	term := &fakeTerminal{}
+	m, _ := testModelWith(t, term, t.TempDir())
+	m.lookPath = func(string) (string, error) { return "", exec.ErrNotFound }
+	m = deliver(m, m.Init())
+
+	m, _ = press(m, enter)
+	m, cmd := press(m, enter)
+	m = deliver(m, cmd)
+
+	if len(term.opened) != 0 {
+		t.Errorf("must not open a tab when the CLI isn't installed: %q", term.opened)
+	}
+	if !strings.Contains(m.View(), "claude is not installed") {
 		t.Errorf("status should explain why:\n%s", m.View())
 	}
 }

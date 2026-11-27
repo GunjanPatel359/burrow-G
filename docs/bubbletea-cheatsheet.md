@@ -347,7 +347,7 @@ While you type a search, every key goes to `sessionlist` — otherwise typing
 1. you press ↓
 2. app.Update gets tea.KeyMsg{"down"} — not one of the app's keys → forwarded:
        m.agents, cmd = m.agents.Update(msg)
-3. inside agentlist.Update (components/agentlist/model.go:86):
+3. inside agentlist.Update (components/agentlist/model.go:88):
        the list moves its cursor to "Qoder"
        the selected name changed → it returns a Cmd that produces SelectedMsg{"qoder"}
 4. Bubble Tea runs that Cmd → SelectedMsg{"qoder"} arrives in app.Update

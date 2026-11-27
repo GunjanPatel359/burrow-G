@@ -1,0 +1,15 @@
+{
+  "output": {"type": "lastMessage", "value": {"projectRoot": "/decoy/output", "cwd": "/decoy/output"}},
+  "cwd": "/decoy/top",
+  "sessionState": {
+    "mainAgentState": {"agentContext": {"cwd": "/decoy/main-agent"}, "agentType": "base2", "subagents": [[1, 2], {"cwd": null}]},
+    "fileContext": {
+      "fileTree": [{"name": "projectRoot", "children": [{"cwd": "/decoy/tree"}]}],
+      "knowledgeFiles": {"cwd": "/decoy/knowledge"},
+      "cwd": "/home/u/code/db/sub",
+      "skills": null,
+      "projectRoot": "/home/u/code/db",
+      "systemInfo": {"platform": "linux"}
+    }
+  }
+}
