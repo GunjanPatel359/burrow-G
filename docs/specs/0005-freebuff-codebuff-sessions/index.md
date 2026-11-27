@@ -4,7 +4,7 @@
 **Status**: Accepted
 **Issue**: #20
 **Number**: 0005, not 0002: the closed PR #24 used 0002 for its draft, and spec 0003 still refers to it by that number
-**Updated**: 2026-11-27: `StartCommand` and `Export` (sections 7 and 8), added to every agent by specs [0003](../0003-session-export/index.md) and [0004](../0004-session-handoff/index.md); Freebuff's own chat title; section 7 corrected after a real handoff failed: Freebuff takes no prompt, so a new chat starts in Codebuff; a missing CLI is named before a new tab opens (section 6); resume runs only `freebuff`, like every other agent's one CLI, and resuming Codebuff chats in `codebuff` is left to a later issue (maintainer's review of PR #27, sections 2 and 6)
+**Updated**: 2026-11-27: `StartCommand` and `Export` (sections 7 and 8), added to every agent by specs [0003](../0003-session-export/index.md) and [0004](../0004-session-handoff/index.md); Freebuff's own chat title; section 7 corrected after a real handoff failed: Freebuff takes no prompt, so a new chat starts in Codebuff; resume runs only `freebuff`, like every other agent's one CLI, and resuming Codebuff chats in `codebuff` is left to a later issue (maintainer's review of PR #27, sections 2 and 6)
 
 ## Summary
 
@@ -27,7 +27,6 @@ What the files and both CLIs' code show, the options, and the cross product resu
 | Package | Owns | May import |
 |---|---|---|
 | `internal/agents/freebuff` (new) | `source.go`: `Name`, `List`, `ResumeCommand`, `StartCommand`, `Delete`, `Export`. `parse.go`: `readChat`, one chat folder as `List` shows it (titles, the head of `run-state.json`). `export.go`: the export reader | `session`, `portable`, `helpers`, standard library |
-| `internal/session`, `internal/tui` | `CheckCommand`: a missing CLI says "<cli> is not installed (not found in PATH)", for a resume here and, before the tab opens, a new tab (section 6) | (unchanged) |
 | `cmd/burrow-g/main.go` | adds `freebuff.Source{Home: ~/.config/manicode}` to `sources`, after `codex` | `freebuff` |
 | `internal/tui/components/agentlist` | display name `"freebuff": "Freebuff"` | (unchanged) |
 
@@ -74,7 +73,7 @@ What the files and both CLIs' code show, the options, and the cross product resu
 | Installed on `PATH` | Result of `freebuff --continue <id>` |
 |---|---|
 | `freebuff` (with or without `codebuff`) | Freebuff opens the chat |
-| only `codebuff`, or neither | resume fails with "freebuff is not installed (not found in PATH)", in the status bar before a new tab opens, or after burrow-G exits for a resume here, like a missing folder |
+| only `codebuff`, or neither | resume fails like any agent whose CLI is missing: `exec: "freebuff": executable file not found in $PATH` |
 
 A Codebuff chat opened in Freebuff keeps its history; the next turn runs Freebuff's agent and models (rationale, "Cross product resume").
 
