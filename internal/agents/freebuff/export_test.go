@@ -217,6 +217,26 @@ func TestLastSummary_CutOff(t *testing.T) {
 	}
 }
 
+// A null on the way to the history means no summary, not a broken file:
+// List shows such a chat, so it must export.
+func TestExport_NullAgentState(t *testing.T) {
+	for _, state := range []string{
+		`{"sessionState":{"fileContext":{"projectRoot":"/one/db","cwd":"/one/db"},"mainAgentState":null}}`,
+		`{"sessionState":{"fileContext":{"projectRoot":"/one/db","cwd":"/one/db"},"mainAgentState":{"messageHistory":null}}}`,
+	} {
+		home := t.TempDir()
+		writeChat(t, home, chat{project: "db", id: "a", runState: state, messages: true})
+		_, records, _, err := export(t, home, session.Session{ID: "a", Dir: "/one/db"})
+		if err != nil {
+			t.Errorf("%s: %v", state, err)
+			continue
+		}
+		if len(records) != 1 || records[0].Kind != "message" {
+			t.Errorf("%s: records = %+v, want the one message", state, records)
+		}
+	}
+}
+
 // Freebuff tags the summary it writes; a prompt that only quotes the
 // summary markup stays a message.
 func TestExport_QuotedSummaryIsNotACompaction(t *testing.T) {

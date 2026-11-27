@@ -92,12 +92,13 @@ func folders(path string) (root, cwd string, err error) {
 	return root, cwd, nil
 }
 
-// errNoKey means a key walk looked for isn't in the file.
+// errNoKey means a key walk looked for isn't in the file, or holds null.
 var errNoKey = errors.New("unsupported run state: key not found")
 
 // walk moves dec, at the start of a JSON object, inside the value stored at
 // the path of keys. Each value on the way but the last must be an object;
-// the last may be an object or an array.
+// the last may be an object or an array. A null on the way counts as
+// missing, so a chat without an agent state still exports.
 func walk(dec *json.Decoder, keys ...string) error {
 	if err := expect(dec, '{'); err != nil {
 		return err
@@ -106,18 +107,17 @@ func walk(dec *json.Decoder, keys ...string) error {
 		if err := seek(dec, key); err != nil {
 			return err
 		}
-		if i < len(keys)-1 {
-			if err := expect(dec, '{'); err != nil {
-				return err
-			}
-			continue
-		}
 		tok, err := dec.Token()
 		if err != nil {
 			return err
 		}
-		if tok != json.Delim('{') && tok != json.Delim('[') {
-			return errors.New("unsupported run state: " + key + " is not an object or array")
+		switch {
+		case tok == nil:
+			return errNoKey
+		case tok == json.Delim('{'):
+		case tok == json.Delim('[') && i == len(keys)-1:
+		default:
+			return errors.New("unsupported run state: " + key + " is not an object")
 		}
 	}
 	return nil
