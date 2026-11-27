@@ -171,9 +171,12 @@ func ownTitle(path string) string {
 }
 
 // cachedTitle returns firstPrompt from chat-meta.json, or "" when the cache is
-// missing or no longer matches chat-messages.json. Freebuff makes the same
-// size and mtime check; the mtime is a float from JavaScript, so it is
-// compared to within a millisecond.
+// missing or chat-messages.json was rewritten since. Freebuff trusts the
+// cache only while size and mtime match, but a chat only grows and its first
+// prompt never changes, so a larger file still has the cached first prompt.
+// A smaller file, or the same size with another mtime, was rewritten. The
+// mtime is a float from JavaScript, so it is compared to within a
+// millisecond.
 func cachedTitle(path string, messages fs.FileInfo) string {
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -188,7 +191,9 @@ func cachedTitle(path string, messages fs.FileInfo) string {
 		return ""
 	}
 	mtime := float64(messages.ModTime().UnixNano()) / 1e6
-	if m.MessagesSize != messages.Size() || math.Abs(m.MessagesMtimeMs-mtime) >= 1 {
+	grew := messages.Size() > m.MessagesSize
+	same := messages.Size() == m.MessagesSize && math.Abs(m.MessagesMtimeMs-mtime) < 1
+	if !grew && !same {
 		return ""
 	}
 	return helpers.Truncate(m.FirstPrompt, 60, "…")

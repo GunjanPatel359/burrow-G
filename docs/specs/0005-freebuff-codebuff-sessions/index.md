@@ -45,7 +45,7 @@ What the files and both CLIs' code show, the options, and the cross product resu
 | sessions | `<Home>/projects/<project>/chats/<chat-id>/`, one folder per chat; `<Home>` is `~/.config/manicode` |
 | `ID` | the chat folder name, an ISO time with `:` replaced by `-` (`2026-08-31T11-08-58.778Z`) |
 | `Dir` | `run-state.json` → `sessionState.fileContext.projectRoot`, else `.cwd`; the first whose base name equals `<project>` (section 4) |
-| `Title` | `chat-title.txt`, the title Freebuff gets from its server (newer versions); else `chat-meta.json` → `firstPrompt` when the cache is current (section 5); else `(untitled)` |
+| `Title` | `chat-title.txt`, the title Freebuff gets from its server (newer versions); else `chat-meta.json` → `firstPrompt` unless `chat-messages.json` was rewritten since (section 5); else `(untitled)` |
 | `LastUsed` | modification time of `chat-messages.json` |
 | `Agent` | `"freebuff"` (the stable index key; never renamed, also for Codebuff chats) |
 
@@ -62,7 +62,7 @@ What the files and both CLIs' code show, the options, and the cross product resu
 
 ### 5. Title cache check
 
-`chat-meta.json` is `{messageCount, firstPrompt, messagesSize, messagesMtimeMs}`, a cache that Freebuff trusts only while `messagesSize` equals the size of `chat-messages.json` and `messagesMtimeMs` equals its modification time in milliseconds. burrow-G makes the same check, with the time allowed to differ by less than 1 ms (a float written by JavaScript, read back in Go). Missing, unreadable or stale cache, or an empty `firstPrompt` → `(untitled)`. `List` never parses `chat-messages.json` itself (it reaches megabytes).
+`chat-meta.json` is `{messageCount, firstPrompt, messagesSize, messagesMtimeMs}`, a cache that Freebuff trusts only while `messagesSize` equals the size of `chat-messages.json` and `messagesMtimeMs` equals its modification time in milliseconds. burrow-G also keeps `firstPrompt` when `chat-messages.json` grew since: a chat only grows and its first prompt never changes, and an older Freebuff rewrites the cache only when its own chat list runs. A smaller file, or the same size with a modification time more than 1 ms off (a float written by JavaScript, read back in Go), was rewritten. Missing or unreadable cache, a rewritten file, or an empty `firstPrompt` → `(untitled)`. `List` never parses `chat-messages.json` itself (it reaches megabytes).
 
 `chat-title.txt` comes first when it holds text: Freebuff asks its server for a title after the first prompt and shows it ahead of the prompt in its own chat list. It is written already cleaned up (one line, at most 60 characters); burrow-G trims it and cuts it to 60 like the prompt. Versions before late 2026 never wrote it.
 

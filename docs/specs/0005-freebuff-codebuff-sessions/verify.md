@@ -5,7 +5,7 @@ _Steps come from the standard definition (sections 2 to 8) and issue #20's "Done
 ## Commands
 
 - [ ] `make check` → gofmt clean, vet clean, every test passes
-- [ ] `go test ./internal/agents/freebuff -v` → missing `projects` gives `ErrMissing`; a `log.jsonl` only chat is skipped; two projects with the same name list with their own folders; the same chat id in two projects lists only the newest; `projectRoot` beats `cwd`; a chat whose folder doesn't match its project is skipped; a decoy `cwd` later in `run-state.json` is ignored; stale or missing `chat-meta.json` gives `(untitled)`; `chat-title.txt` beats the first prompt; `ResumeCommand` gives `freebuff --continue <id>` and `StartCommand` gives `codebuff <prompt>`; the export fixture gives every row of section 8 (sections 2, 4 to 8)
+- [ ] `go test ./internal/agents/freebuff -v` → missing `projects` gives `ErrMissing`; a `log.jsonl` only chat is skipped; two projects with the same name list with their own folders; the same chat id in two projects lists only the newest; `projectRoot` beats `cwd`; a chat whose folder doesn't match its project is skipped; a decoy `cwd` later in `run-state.json` is ignored; a grown `chat-messages.json` keeps the cached first prompt, a rewritten one or a missing `chat-meta.json` gives `(untitled)`; `chat-title.txt` beats the first prompt; `ResumeCommand` gives `freebuff --continue <id>` and `StartCommand` gives `codebuff <prompt>`; the export fixture gives every row of section 8 (sections 2, 4 to 8)
 
 ## By hand
 

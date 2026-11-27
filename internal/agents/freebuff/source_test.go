@@ -25,8 +25,9 @@ const (
 	noMeta     meta = iota
 	freshMeta       // matches chat-messages.json
 	nearMeta        // mtime off by 0.4 ms, still current
-	staleSize       // chat-messages.json grew since
-	staleMtime      // mtime off by 5 ms
+	grown           // chat-messages.json grew since: the first prompt still holds
+	shrunk          // chat-messages.json is smaller: rewritten
+	staleMtime      // same size, mtime off by 5 ms: rewritten
 )
 
 type chat struct {
@@ -86,7 +87,10 @@ func writeChat(t *testing.T, home string, c chat) {
 		return
 	case nearMeta:
 		ms += 0.4
-	case staleSize:
+	case grown:
+		size--
+		ms -= 5000
+	case shrunk:
 		size++
 	case staleMtime:
 		ms += 5
@@ -106,12 +110,13 @@ func TestList(t *testing.T) {
 		{project: "db", id: "2026-08-31T12-00-00.000Z", runState: runState("/one/db", "/one/db"), messages: true, meta: freshMeta, prompt: "first db"},
 		{project: "db", id: "2026-08-31T13-00-00.000Z", runState: runState("/two/db", "/two/db"), messages: true, meta: nearMeta, prompt: "second db"},
 		{project: "db", id: "2026-08-31T14-00-00.000Z", runState: runState("/one/db", "/one/db"), messages: true, meta: noMeta},
-		{project: "db", id: "2026-08-31T15-00-00.000Z", runState: runState("/one/db", "/one/db"), messages: true, meta: staleSize, prompt: "old prompt"},
+		{project: "db", id: "2026-08-31T15-00-00.000Z", runState: runState("/one/db", "/one/db"), messages: true, meta: shrunk, prompt: "old prompt"},
 		{project: "db", id: "2026-08-31T16-00-00.000Z", runState: runState("/one/db", "/one/db"), messages: true, meta: staleMtime, prompt: "old prompt"},
 		{project: "db", id: "2026-08-31T17-00-00.000Z", runState: runState("/one/db", "/one/db"), messages: true, meta: freshMeta, prompt: ""},
+		{project: "db", id: "2026-08-31T17-10-00.000Z", runState: runState("/one/db", "/one/db"), messages: true, meta: grown, prompt: "fix the cache"},
 		// Freebuff's own title wins over the first prompt, even a stale one.
 		{project: "db", id: "2026-08-31T17-30-00.000Z", runState: runState("/one/db", "/one/db"), messages: true, meta: freshMeta, prompt: "first prompt", title: "Fix login redirect\n"},
-		{project: "db", id: "2026-08-31T17-40-00.000Z", runState: runState("/one/db", "/one/db"), messages: true, meta: staleSize, prompt: "old prompt", title: "Rename the db package"},
+		{project: "db", id: "2026-08-31T17-40-00.000Z", runState: runState("/one/db", "/one/db"), messages: true, meta: shrunk, prompt: "old prompt", title: "Rename the db package"},
 		{project: "db", id: "2026-08-31T17-50-00.000Z", runState: runState("/one/db", "/one/db"), messages: true, meta: freshMeta, prompt: "blank title", title: " \n"},
 		// The project root moved; cwd still matches the project folder.
 		{project: "web", id: "2026-08-31T18-00-00.000Z", runState: runState("/w/elsewhere", "/w/web"), messages: true, meta: freshMeta, prompt: "moved root"},
@@ -151,6 +156,7 @@ func TestList(t *testing.T) {
 		"2026-08-31T15-00-00.000Z": {"(untitled)", "/one/db"},
 		"2026-08-31T16-00-00.000Z": {"(untitled)", "/one/db"},
 		"2026-08-31T17-00-00.000Z": {"(untitled)", "/one/db"},
+		"2026-08-31T17-10-00.000Z": {"fix the cache", "/one/db"},
 		"2026-08-31T17-30-00.000Z": {"Fix login redirect", "/one/db"},
 		"2026-08-31T17-40-00.000Z": {"Rename the db package", "/one/db"},
 		"2026-08-31T17-50-00.000Z": {"blank title", "/one/db"},
