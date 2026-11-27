@@ -17,7 +17,8 @@
 - Done messages in the status line clear themselves after 2 s, and the key hints stay at the
   right edge.
 - Export a session: press `e` on it, then Save to file. The whole conversation, every tool call with its output,
-  and the compaction summaries go to `~/.local/share/burrow-g/exports/<agent>-<id>.jsonl`, in
+  and the compaction summaries (only the latest for Freebuff, which keeps no others) go to
+  `~/.local/share/burrow-g/exports/<agent>-<id>.jsonl`, in
   one format for every agent (`burrow-session/1`, spec 0003). The file is readable only by
   you. OpenCode sessions go through OpenCode's own `session export`; the other agents' files
   are only read.

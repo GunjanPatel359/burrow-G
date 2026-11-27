@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -190,11 +191,40 @@ func TestExport_NotFound(t *testing.T) {
 }
 
 func TestExport_BrokenMessages(t *testing.T) {
+	tests := []struct{ name, content string }{
+		{"inside a message", `[{"id":"user-1788174501000","variant":"user","content":"hi"},{"id":`},
+		{"before the closing bracket", `[{"id":"user-1788174501000","variant":"user","content":"hi"}`},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			home := exportHome(t)
+			path := filepath.Join(home, "projects", "db", "chats", exportID, "chat-messages.json")
+			writeFile(t, path, tt.content)
+			if _, _, _, err := export(t, home, session.Session{ID: exportID, Dir: "/w/db"}); err == nil {
+				t.Error("want an error for a cut off chat-messages.json")
+			}
+		})
+	}
+}
+
+// Freebuff tags the summary it writes; a prompt that only quotes the
+// summary markup stays a message.
+func TestExport_QuotedSummaryIsNotACompaction(t *testing.T) {
 	home := exportHome(t)
-	path := filepath.Join(home, "projects", "db", "chats", exportID, "chat-messages.json")
-	writeFile(t, path, `[{"id":"user-1788174501000","variant":"user","content":"hi"},{"id":`)
-	if _, _, _, err := export(t, home, session.Session{ID: exportID, Dir: "/w/db"}); err == nil {
-		t.Error("want an error for a cut off chat-messages.json")
+	path := filepath.Join(home, "projects", "db", "chats", exportID, "run-state.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, path, strings.Replace(string(data), `"CONVERSATION_SUMMARY"`, `"USER_PROMPT"`, 1))
+	_, records, _, err := export(t, home, session.Session{ID: exportID, Dir: "/w/db"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range records {
+		if r.Kind == "compaction" {
+			t.Errorf("an untagged message became a compaction: %+v", r)
+		}
 	}
 }
 

@@ -19,6 +19,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -260,8 +261,9 @@ func words(blocks []block) string {
 	return strings.Join(texts, "\n\n")
 }
 
-// lastSummary finds the compaction summary in run-state.json, the first
-// message of the model's history after a compaction, and when it was made.
+// lastSummary finds the compaction summary in run-state.json, the user
+// message tagged CONVERSATION_SUMMARY that starts the model's history after
+// a compaction, and when it was made.
 // A chat never compacted has none.
 func lastSummary(path string) (string, time.Time, error) {
 	f, err := os.Open(path)
@@ -280,13 +282,16 @@ func lastSummary(path string) (string, time.Time, error) {
 	for dec.More() {
 		var m struct {
 			Role    string          `json:"role"`
+			Tags    []string        `json:"tags"` // the summary's is CONVERSATION_SUMMARY
 			SentAt  float64         `json:"sentAt"`
 			Content json.RawMessage `json:"content"` // text, or a list of parts
 		}
 		if err := dec.Decode(&m); err != nil {
 			return "", time.Time{}, err
 		}
-		if m.Role != "user" {
+		// A prompt can quote the summary markup; only Freebuff's own summary
+		// carries its tag.
+		if m.Role != "user" || !slices.Contains(m.Tags, "CONVERSATION_SUMMARY") {
 			continue
 		}
 		if text, ok := summaryText(m.Content); ok {

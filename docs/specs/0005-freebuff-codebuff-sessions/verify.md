@@ -11,7 +11,7 @@ _Steps come from the standard definition (sections 2 to 8) and issue #20's "Done
 
 Run `make build`. Use a fake `HOME` that links to a real `~/.config/manicode` (`qa-local/run.sh real` does this), never the real index.
 
-- [ ] `./bin/burrow-g list` → every used Freebuff chat appears once, with its first prompt as the title, its project folder, and its last used time; never used chats don't appear (sections 3, 4)
+- [ ] `./bin/burrow-g list` → every used Freebuff chat appears once, with its title in the order of section 5 (Freebuff's own, else the first prompt), its project folder, and its last used time; never used chats don't appear (sections 3, 4)
 - [ ] TUI → the agents pane shows "Freebuff" with the right count, not cut short; the details pane shows `freebuff --continue <id>` (sections 1, 6)
 - [ ] With only `codebuff` on `PATH` (`PATH=<dir with a codebuff stub>:/usr/bin`) → details show `codebuff --continue <id>` (section 6)
 - [ ] Resume a chat (enter) → Freebuff opens **that** chat, in its folder, with its history (section 4.3)
@@ -20,7 +20,7 @@ Run `make build`. Use a fake `HOME` that links to a real `~/.config/manicode` (`
 - [ ] Compact a throwaway chat in a current Freebuff (`/compact`), say a few more words, then export it → one `compaction` record, after the messages before `/compact` and before the ones after it; nothing before it is missing (section 8)
 - [ ] With `codebuff` on `PATH`: `e` on any session, Continue in Freebuff → Codebuff starts in that folder, reads the handoff file and says where the work left off (section 7)
 - [ ] With only `freebuff` on `PATH`: `e` on any session → no Continue in Freebuff row (section 7)
-- [ ] With neither on `PATH`, enter on a Freebuff chat → status says "freebuff is not installed (not found in PATH)" and no tab opens; `o` → burrow-G exits with the same message (section 6)
+- [ ] With neither on `PATH`, in a terminal that opens tabs (GNOME, not under sudo), enter on a Freebuff chat → status says "freebuff is not installed (not found in PATH)" and no tab opens; `o`, or enter in any other terminal → burrow-G exits with the same message (section 6)
 - [ ] A chat started in a current Freebuff shows Freebuff's own title in the list, not the first prompt (section 5)
 
 ## Cross product resume (needs a Codebuff account)
