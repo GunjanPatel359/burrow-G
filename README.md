@@ -61,16 +61,15 @@ of them — in the right folder, with the right command.
 | OpenCode | `~/.local/share/opencode/opencode.db` (read-only) | `opencode --session <id>` |
 | Copilot CLI | `~/.copilot/session-store.db` (read-only) | `copilot --resume <id>` |
 | Codex | `~/.codex/sessions/` | `codex resume <id>` |
-| Freebuff / Codebuff | `~/.config/manicode/projects/` | `freebuff --continue <id>` (`codebuff` if only that is installed) |
+| Freebuff / Codebuff | `~/.config/manicode/projects/` | `freebuff --continue <id>` |
 
 Codex support follows Codex's documented session format but has not yet been tested
 against real Codex sessions — reports welcome.
 
 Freebuff and Codebuff run the same code and keep their chats in the same folder, so they
-share the "Freebuff" row. Either CLI can continue a chat started in the other; the next reply then
-comes from the CLI you resumed in. **Continue in Freebuff** starts `codebuff`, and shows only when it is
-installed: `freebuff` can't start a chat with a prompt.
-Freebuff Desktop keeps its threads elsewhere and offers
+share the "Freebuff" row. burrow-G resumes every chat in `freebuff`, Codebuff chats too.
+**Continue in Freebuff** starts `codebuff`, and shows only when it is installed: `freebuff`
+can't start a chat with a prompt. Freebuff Desktop keeps its threads elsewhere and offers
 no way to open one from outside, so its threads aren't listed.
 
 ## Install

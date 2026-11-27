@@ -4,15 +4,15 @@
 **Status**: Accepted
 **Issue**: #20
 **Number**: 0005, not 0002: the closed PR #24 used 0002 for its draft, and spec 0003 still refers to it by that number
-**Updated**: 2026-11-27: `StartCommand` and `Export` (sections 7 and 8), added to every agent by specs [0003](../0003-session-export/index.md) and [0004](../0004-session-handoff/index.md); Freebuff's own chat title; section 7 corrected after a real handoff failed: Freebuff takes no prompt, so a new chat starts in Codebuff; a missing CLI is named before a new tab opens (section 6)
+**Updated**: 2026-11-27: `StartCommand` and `Export` (sections 7 and 8), added to every agent by specs [0003](../0003-session-export/index.md) and [0004](../0004-session-handoff/index.md); Freebuff's own chat title; section 7 corrected after a real handoff failed: Freebuff takes no prompt, so a new chat starts in Codebuff; a missing CLI is named before a new tab opens (section 6); resume runs only `freebuff`, like every other agent's one CLI, and resuming Codebuff chats in `codebuff` is left to a later issue (maintainer's review of PR #27, sections 2 and 6)
 
 ## Summary
 
-burrow-G gains a read only reader for Freebuff, the free CLI from the Codebuff team. Its paid sibling Codebuff runs the same code and keeps its chats in the same folder, so one reader lists both, in one agents pane row called "Freebuff" ("Freebuff / Codebuff" would be cut short in the 20 column pane). Resume uses `freebuff`, or `codebuff` when only that one is installed. The choice between the two CLIs is one small function inside the reader. Starting a new chat (for "Continue in Freebuff") always uses `codebuff`, the only one that takes a prompt, and `Export` reads the chat's own files, since Freebuff has no structured export.
+burrow-G gains a read only reader for Freebuff, the free CLI from the Codebuff team. Its paid sibling Codebuff runs the same code and keeps its chats in the same folder, so one reader lists both, in one agents pane row called "Freebuff" ("Freebuff / Codebuff" would be cut short in the 20 column pane). Resume runs `freebuff`, one fixed command like every other agent; resuming in `codebuff` is left to a later issue. Starting a new chat (for "Continue in Freebuff") always uses `codebuff`, the only one that takes a prompt, and `Export` reads the chat's own files, since Freebuff has no structured export.
 
 ## Decision
 
-**Chosen option**: Option 1: one reader for the shared folder, a CLI picker inside it, folder taken from `run-state.json` and checked against the chat's project folder.
+**Chosen option**: Option 1: one reader for the shared folder, resumed with `freebuff`, folder taken from `run-state.json` and checked against the chat's project folder.
 
 **Implementation skills**: `golang-code-style` · `golang-error-handling` · `golang-testing` (standard `testing` only, per `AGENTS.md`)
 
@@ -26,27 +26,18 @@ What the files and both CLIs' code show, the options, and the cross product resu
 
 | Package | Owns | May import |
 |---|---|---|
-| `internal/agents/freebuff` (new) | `source.go`: `Name`, `List`, `ResumeCommand`, `StartCommand`, `Delete`, `Export`. `parse.go`: `readChat`, one chat folder as `List` shows it (titles, the head of `run-state.json`), and `pickCLI` (section 2). `export.go`: the export reader | `session`, `portable`, `helpers`, standard library |
+| `internal/agents/freebuff` (new) | `source.go`: `Name`, `List`, `ResumeCommand`, `StartCommand`, `Delete`, `Export`. `parse.go`: `readChat`, one chat folder as `List` shows it (titles, the head of `run-state.json`). `export.go`: the export reader | `session`, `portable`, `helpers`, standard library |
 | `internal/session`, `internal/tui` | `CheckCommand`: a missing CLI says "<cli> is not installed (not found in PATH)", for a resume here and, before the tab opens, a new tab (section 6) | (unchanged) |
-| `cmd/burrow-g/main.go` | adds `freebuff.Source{Home: ~/.config/manicode, LookPath: exec.LookPath}` to `sources`, after `codex` | `freebuff` |
+| `cmd/burrow-g/main.go` | adds `freebuff.Source{Home: ~/.config/manicode}` to `sources`, after `codex` | `freebuff` |
 | `internal/tui/components/agentlist` | display name `"freebuff": "Freebuff"` | (unchanged) |
 
 `source.go` holds only the six `Source` methods (repo convention); file parsing lives in `parse.go`, as in `claude/` and `qoder/`, and the export reader in `export.go`, as in the other agents. `List` and `Export` read a chat folder through the same `readChat`, so an export's header and the list never disagree.
 
-### 2. The CLI picker
+### 2. Which CLI
 
-```go
-// agents/freebuff/parse.go
-// pickCLI returns the first of names that lookPath finds. If none is found it
-// returns names[0], so the résumé error names the CLI people should install.
-// A nil lookPath means exec.LookPath.
-func pickCLI(lookPath func(string) (string, error), names ...string) string
-```
-
-- "Installed" means "found on `PATH`", the same lookup `session.Resume` makes with `argv[0]`. A binary that only sits in the agent's own folder doesn't count, because resume couldn't run it.
-- Order is preference: the first name wins when several are installed.
-- It is called from `ResumeCommand`, so the details pane always shows the command that would run. `StartCommand` doesn't use it: only Codebuff can start a chat with a prompt (section 7).
-- It stays private to the reader: Freebuff is the only agent with two CLIs. If a second one appears, it moves to `internal/session` then, rather than becoming shared code with one caller now.
+- Resume runs `freebuff`, a fixed command like every other agent's (section 6). It doesn't look at what is installed, so the details pane shows the same command on every machine.
+- Codebuff chats are in the list and resume in Freebuff. Resuming them in `codebuff`, for people who have only Codebuff, is left to a separate issue (maintainer's review of PR #27). An earlier draft of this spec picked `codebuff` when `freebuff` wasn't on `PATH`; that picker was dropped.
+- Starting a new chat is the one place that runs `codebuff`, because Freebuff takes no prompt (section 7).
 
 ### 3. Where sessions come from
 
@@ -78,22 +69,20 @@ func pickCLI(lookPath func(string) (string, error), names ...string) string
 
 ### 6. Resume
 
-`ResumeCommand` returns `[pickCLI(LookPath, "freebuff", "codebuff"), "--continue", <ID>]`, run in `Dir` by `session.Resume` or a new tab, like every agent.
+`ResumeCommand` returns `["freebuff", "--continue", <ID>]`, run in `Dir` by `session.Resume` or a new tab, like every agent.
 
-| Installed on `PATH` | Command |
+| Installed on `PATH` | Result of `freebuff --continue <id>` |
 |---|---|
-| both | `freebuff --continue <id>` |
-| only `freebuff` | `freebuff --continue <id>` |
-| only `codebuff` | `codebuff --continue <id>` |
-| neither | `freebuff --continue <id>`: resume fails with "freebuff is not installed (not found in PATH)", in the status bar before a new tab opens, or after burrow-G exits for a resume here, like a missing folder |
+| `freebuff` (with or without `codebuff`) | Freebuff opens the chat |
+| only `codebuff`, or neither | resume fails with "freebuff is not installed (not found in PATH)", in the status bar before a new tab opens, or after burrow-G exits for a resume here, like a missing folder |
 
-Opening a chat in the other product works and continues the conversation; the next turn runs that product's agent and billing (rationale, "Cross product resume").
+A Codebuff chat opened in Freebuff keeps its history; the next turn runs Freebuff's agent and models (rationale, "Cross product resume").
 
 ### 7. Start a new chat
 
 `StartCommand(prompt)` returns `["codebuff", prompt]`, whatever is installed. Codebuff takes the first message as its words (`codebuff [prompt...]`). Freebuff takes none: its only argument is `login` or `doctor`, and its parser drops any prompt (checked in 0.2.38's `--help` and its argument parser; `freebuff <prompt>` fails with "Allowed choices are login, doctor").
 
-The handoff dialog (spec 0004) offers "Continue in Freebuff" when that first word is on `PATH`, so the row shows only when `codebuff` is installed and is hidden with only `freebuff`. It keeps the shared "Freebuff" label. Resume is unaffected: `--continue <id>` works in both (section 6).
+The handoff dialog (spec 0004) offers "Continue in Freebuff" when that first word is on `PATH`, so the row shows only when `codebuff` is installed and is hidden with only `freebuff`. It keeps the shared "Freebuff" label. Resume still runs `freebuff` (section 6).
 
 ### 8. Export
 
@@ -123,48 +112,30 @@ Not in the export, because `chat-messages.json` doesn't keep them: the model id,
 | Value | Source |
 |---|---|
 | `Home` | `filepath.Join(home, ".config", "manicode")` in `main.go`; both launchers use `os.homedir()/.config/manicode` on Linux and macOS |
-| installed CLIs | `Source.LookPath`, `exec.LookPath` in `main.go`, a fake in tests |
 | project folder name | the `projects/<project>` directory name |
 | ID, title, folder, last used | section 3 |
 
 ### Canonical pattern
 
 ```go
-// agents/freebuff/parse.go
-func pickCLI(lookPath func(string) (string, error), names ...string) string {
-	if lookPath == nil {
-		lookPath = exec.LookPath
-	}
-	for _, name := range names {
-		if _, err := lookPath(name); err == nil {
-			return name
-		}
-	}
-	return names[0]
-}
-
 // agents/freebuff/source.go
-func (f Source) ResumeCommand(s session.Session) []string {
-	// Freebuff and Codebuff share the chats folder and both resume any chat in it.
-	return []string{pickCLI(f.LookPath, "freebuff", "codebuff"), "--continue", s.ID}
+func (Source) ResumeCommand(s session.Session) []string {
+	return []string{"freebuff", "--continue", s.ID}
 }
 
-// agents/freebuff/source_test.go
-func TestResumeCommand_OnlyCodebuff(t *testing.T) {
-	src := Source{LookPath: installed("codebuff")}
-	got := src.ResumeCommand(session.Session{ID: "2026-08-31T11-08-58.778Z"})
-	want := []string{"codebuff", "--continue", "2026-08-31T11-08-58.778Z"}
-	if !slices.Equal(got, want) {
-		t.Errorf("got %v, want %v", got, want)
-	}
+// StartCommand always starts Codebuff: Freebuff takes no prompt, only the
+// login and doctor commands. Without codebuff the Continue in dialog hides
+// the row.
+func (Source) StartCommand(prompt string) []string {
+	return []string{"codebuff", prompt}
 }
 ```
 
-**Enforcement**: tests in `internal/agents/freebuff/` (`var _ session.Source = Source{}`, chat folders built in `t.TempDir()` for every rule in section 4 and the title order in section 5 (the cache check needs mtimes that git doesn't keep), `run-state.json` shapes with decoy `cwd` keys in `testdata/`, `ResumeCommand` and `StartCommand` tables for sections 2, 6 and 7 (order, fallback to `freebuff`, a nil `LookPath` using the real `PATH`), and an export fixture in `testdata/export/` with every row of section 8). The local QA kit gets a Freebuff fixture.
+**Enforcement**: tests in `internal/agents/freebuff/` (`var _ session.Source = Source{}`, chat folders built in `t.TempDir()` for every rule in section 4 and the title order in section 5 (the cache check needs mtimes that git doesn't keep), `run-state.json` shapes with decoy `cwd` keys in `testdata/`, `ResumeCommand` and `StartCommand` tests for sections 6 and 7, and an export fixture in `testdata/export/` with every row of section 8). The local QA kit gets a Freebuff fixture.
 
-**Rollout**: one PR: the spec, then one commit with the reader (all six methods), picker, wiring, display name and docs. Specs 0003 and 0004 landed while this was in review, so `StartCommand` and `Export` are part of that commit: without them it doesn't build.
+**Rollout**: one PR: the spec, then one commit with the reader (all six methods), wiring, display name and docs. Specs 0003 and 0004 landed while this was in review, so `StartCommand` and `Export` are part of that commit: without them it doesn't build.
 
-**Docs**: README "Supported agents" row ("Freebuff / Codebuff", which has room there; `~/.config/manicode/projects/`, `freebuff --continue <id>` or `codebuff`), `internal/agents/AGENTS.md` key files row, `CHANGELOG.md` line; the agent tables in specs 0003 (section 4) and 0004 (section 4) get a Freebuff row.
+**Docs**: README "Supported agents" row ("Freebuff / Codebuff", which has room there; `~/.config/manicode/projects/`, `freebuff --continue <id>`), `internal/agents/AGENTS.md` key files row, `CHANGELOG.md` line; the agent tables in specs 0003 (section 4) and 0004 (section 4) get a Freebuff row.
 
 **Exceptions** (out of scope):
 - Freebuff Desktop (`~/.config/freebuff-desktop/`): its threads live in per project SQLite files that the CLIs don't read, and the app accepts no outside link to open a thread (rationale), so burrow-G could list them but never open them.
@@ -178,17 +149,17 @@ func TestResumeCommand_OnlyCodebuff(t *testing.T) {
 - Resume never lands in a different chat because of a mismatched folder.
 
 **Negative / tradeoffs**:
-- Freebuff and Codebuff chats can't be told apart, so a Codebuff chat resumes in Freebuff when both are installed.
+- Freebuff and Codebuff chats can't be told apart, and resume always runs `freebuff`: a Codebuff chat resumes in Freebuff, and someone with only Codebuff installed can list chats but not resume them (a later issue).
 - Chats whose project root and cwd both differ from their project folder name (a chat that switched folders in the app) are hidden rather than shown with a risky resume.
 - Of two chats with the same id in different project folders, the older one is hidden (section 4, rule 8). It takes two chats started in the same millisecond.
 - Freebuff updates itself almost daily; a layout change shows up as missing chats, not as an error.
 
 **Neutral**:
 - No index schema change: the new agent key is `freebuff`.
-- `ResumeCommand` now runs a `PATH` lookup each time the details pane draws; it is a few `stat` calls.
 
 ## Follow-up
 
+- [ ] Resume Codebuff chats in `codebuff` for people who have only Codebuff (separate issue, from the maintainer's review of PR #27).
 - [ ] A real cross product resume (Freebuff chat in Codebuff and back) by someone with a Codebuff account (verify.md).
 - [ ] If a deleted chat folder still shows before a refresh, resume opens Freebuff's most recent chat; consider a chat folder check before resume when delete support lands.
 - [ ] Export a chat compacted by a current Freebuff and check the summary lands where the compaction happened (verify.md): the local chats predate compaction.

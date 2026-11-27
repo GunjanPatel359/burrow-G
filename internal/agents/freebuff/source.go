@@ -17,8 +17,6 @@ import (
 // Source reads chats from Home, usually ~/.config/manicode.
 type Source struct {
 	Home string
-	// LookPath finds installed CLIs; nil means exec.LookPath.
-	LookPath func(string) (string, error)
 }
 
 func (Source) Name() string { return "freebuff" }
@@ -68,9 +66,8 @@ func (f Source) List() ([]session.Session, error) {
 	return list, nil
 }
 
-func (f Source) ResumeCommand(s session.Session) []string {
-	// Either CLI resumes any chat in the shared folder; Freebuff is preferred.
-	return []string{pickCLI(f.LookPath, "freebuff", "codebuff"), "--continue", s.ID}
+func (Source) ResumeCommand(s session.Session) []string {
+	return []string{"freebuff", "--continue", s.ID}
 }
 
 // StartCommand always starts Codebuff: Freebuff takes no prompt, only the

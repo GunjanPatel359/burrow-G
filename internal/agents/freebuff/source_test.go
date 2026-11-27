@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -259,72 +258,21 @@ func TestFolders(t *testing.T) {
 	}
 }
 
-// installed stands in for exec.LookPath: only names are on PATH.
-func installed(names ...string) func(string) (string, error) {
-	return func(name string) (string, error) {
-		if slices.Contains(names, name) {
-			return "/usr/bin/" + name, nil
-		}
-		return "", exec.ErrNotFound
-	}
-}
-
 func TestResumeCommand(t *testing.T) {
-	tests := []struct {
-		name      string
-		installed []string
-		cli       string
-	}{
-		{"both installed", []string{"freebuff", "codebuff"}, "freebuff"},
-		{"only freebuff", []string{"freebuff"}, "freebuff"},
-		{"only codebuff", []string{"codebuff"}, "codebuff"},
-		{"neither", nil, "freebuff"},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			src := Source{LookPath: installed(tt.installed...)}
-			got := src.ResumeCommand(session.Session{ID: "2026-08-31T11-08-58.778Z"})
-			want := []string{tt.cli, "--continue", "2026-08-31T11-08-58.778Z"}
-			if !slices.Equal(got, want) {
-				t.Errorf("got %v, want %v", got, want)
-			}
-		})
-	}
-}
-
-// With no LookPath, the CLI is looked up on the real PATH, as resume does.
-func TestResumeCommand_NilLookPathUsesPath(t *testing.T) {
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "codebuff"), []byte("#!/bin/sh\n"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("PATH", dir)
-	got := Source{}.ResumeCommand(session.Session{ID: "a"})
-	if want := []string{"codebuff", "--continue", "a"}; !slices.Equal(got, want) {
-		t.Errorf("got %v, want %v (codebuff is the one on PATH)", got, want)
+	got := Source{}.ResumeCommand(session.Session{ID: "2026-08-31T11-08-58.778Z"})
+	want := []string{"freebuff", "--continue", "2026-08-31T11-08-58.778Z"}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }
 
 // Freebuff takes no prompt ("Allowed choices are login, doctor"), so a
-// new chat always starts in Codebuff; without it the dialog hides the row.
+// new chat starts in Codebuff; without it the dialog hides the row.
 func TestStartCommand(t *testing.T) {
-	tests := []struct {
-		name      string
-		installed []string
-	}{
-		{"both installed", []string{"freebuff", "codebuff"}},
-		{"only freebuff", []string{"freebuff"}},
-		{"only codebuff", []string{"codebuff"}},
-		{"neither", nil},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := Source{LookPath: installed(tt.installed...)}.StartCommand("read the handoff")
-			want := []string{"codebuff", "read the handoff"}
-			if !slices.Equal(got, want) {
-				t.Errorf("got %v, want %v", got, want)
-			}
-		})
+	got := Source{}.StartCommand("read the handoff")
+	want := []string{"codebuff", "read the handoff"}
+	if !slices.Equal(got, want) {
+		t.Errorf("got %v, want %v", got, want)
 	}
 }
 

@@ -6,30 +6,12 @@ import (
 	"io/fs"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/GunjanPatel359/burrow-G/internal/helpers"
 	"github.com/GunjanPatel359/burrow-G/internal/session"
 )
-
-// pickCLI returns the first of names that lookPath finds, so a chat resumes
-// in Codebuff when only that is installed. If none is found it returns
-// names[0], so the résumé error ("freebuff is not installed") names the CLI
-// to install.
-// A nil lookPath means exec.LookPath, the lookup session.Resume makes.
-func pickCLI(lookPath func(string) (string, error), names ...string) string {
-	if lookPath == nil {
-		lookPath = exec.LookPath
-	}
-	for _, name := range names {
-		if _, err := lookPath(name); err == nil {
-			return name
-		}
-	}
-	return names[0]
-}
 
 // readChat reads the chat folder dir, under projects/<project>/chats/, the way
 // List shows it. ok is false for a folder List skips: a chat opened and

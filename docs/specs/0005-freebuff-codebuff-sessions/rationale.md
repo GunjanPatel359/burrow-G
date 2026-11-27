@@ -49,11 +49,11 @@ The desktop app (AppImage 0.0.205) keeps threads in `~/.config/freebuff-desktop/
 
 ### Option 1: One reader, CLI picker, checked folder (chosen)
 
-One `freebuff` reader for the shared folder, labeled "Freebuff" in the agents pane. A small `pickCLI` in the reader chooses `freebuff`, else `codebuff`, by `PATH`. `Dir` from `projectRoot`, else `cwd`, kept only when its base name matches the project folder.
+One `freebuff` reader for the shared folder, labeled "Freebuff" in the agents pane, resuming with `freebuff`. `Dir` from `projectRoot`, else `cwd`, kept only when its base name matches the project folder.
 
 - Matches what is on disk: one folder, one format, either CLI resumes any chat.
 - Resume never opens the wrong chat.
-- The picker is one small function, tested through `ResumeCommand`. It stays in the reader because Freebuff is the only agent with two CLIs; shared code with one caller would be a guess about future agents.
+- The first draft also chose `codebuff` when `freebuff` wasn't on `PATH`; review dropped that (below).
 
 ### Option 2: Two readers split by `agentType`
 
@@ -70,11 +70,15 @@ A `freebuff` and a `codebuff` row, each resuming with its own CLI.
 ### Option 4: Pick the CLI by the binary in `~/.config/manicode`
 
 - The launchers put binaries there, but a leftover binary after `npm uninstall` would win, and resume runs what `PATH` finds, not that file.
-- Rejected in favor of the `PATH` lookup resume already makes.
+- Rejected. Later the `PATH` picker was dropped too (below).
 
 ## Rationale
 
-Option 1 is the only one that is honest about what the files can tell (nothing about the product), safe on resume (folder checked). Its one cost, Codebuff chats resuming in Freebuff when both are installed, is harmless by the cross product finding, and is what the user chose: Freebuff by default, Codebuff as the fallback.
+Option 1 is the only one that is honest about what the files can tell (nothing about the product), safe on resume (folder checked). Its one cost, Codebuff chats resuming in Freebuff, is harmless by the cross product finding.
+
+## Resume runs only `freebuff` (added 2026-11-27)
+
+The first version picked `freebuff`, else `codebuff`, by `PATH`. On review of PR #27 the maintainer asked for one fixed command like every other agent, and for resuming Codebuff chats to be handled in a separate issue. So `ResumeCommand` returns `freebuff --continue <id>` and the reader has no `PATH` lookup. Starting a new chat still runs `codebuff`, because Freebuff takes no prompt (index, section 7).
 
 ## Export: which file (added 2026-11-27)
 

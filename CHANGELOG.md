@@ -4,10 +4,10 @@
 
 ### Added
 
-- Freebuff and Codebuff chats, in one "Freebuff" row. Resume uses `freebuff`, or
-  `codebuff` when only that is installed. They can be saved to a file and continued
-  elsewhere like any session. "Continue in Freebuff" starts `codebuff`, the only one that
-  takes a first prompt, so it shows only when `codebuff` is installed (#20).
+- Freebuff and Codebuff chats, in one "Freebuff" row. Resume uses `freebuff`. They can be
+  saved to a file and continued elsewhere like any session. "Continue in Freebuff" starts
+  `codebuff`, the only one that takes a first prompt, so it shows only when `codebuff` is
+  installed (#20).
 - Resuming when the agent's CLI isn't installed says "<cli> is not installed (not found in
   PATH)"; with a new tab, in the status line before the tab opens.
 - Continue a session in another agent: `e` on a session opens a dialog with **Save to file**
