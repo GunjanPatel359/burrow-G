@@ -13,6 +13,7 @@ Each folder here reads one agent CLI's sessions and turns them into the shared `
 | `opencode/source.go` | `~/.local/share/opencode/opencode.db`, table `session_v2` or `session` |
 | `copilot/source.go` | `~/.copilot/session-store.db`, table `sessions`; `Export` reads `~/.copilot/session-state/<id>/events.jsonl` |
 | `codex/source.go` | `~/.codex/sessions/**/rollout-*.jsonl` plus `session_index.jsonl` thread names |
+| `freebuff/` | `~/.config/manicode/projects/*/chats/*/`, shared by Freebuff and Codebuff; `parse.go` reads one chat folder for `List` and `Export` (title, the folder streamed out of `run-state.json`), `export.go` reads `chat-messages.json`; resume runs `freebuff`, a new chat `codebuff` (spec 0005) |
 
 ## Conventions
 
@@ -30,6 +31,8 @@ Each folder here reads one agent CLI's sessions and turns them into the shared `
 - Agents rename tables across versions (OpenCode `session` → `session_v2`). Detect which exists through `sqlite_master` and support both; only interpolate a table name picked from a fixed list.
 - Close errors from read only connections are ignored (`defer db.Close()`); never fail a refresh over them.
 - Skip child sessions: OpenCode rows with a `parent_id`, Codex subagent rollouts.
+- Freebuff/Codebuff `--continue <id>` looks for the chat under `projects/<base name of the folder it runs in>` and silently opens the latest chat when it isn't there. Keep `Dir` checked against the project folder name.
+- Never open Freebuff's `log.jsonl` (account id and e-mail) or `~/.config/manicode/credentials.json`.
 - Codex support follows its documented format and is untested against real sessions.
 
 _Drafted by /audit from the repo, worth a quick human pass. Edit freely: once a line stops matching this draft, later runs treat it as curated and will flag rather than overwrite it._

@@ -10,6 +10,7 @@ import (
 	"github.com/GunjanPatel359/burrow-G/internal/agents/claude"
 	"github.com/GunjanPatel359/burrow-G/internal/agents/codex"
 	"github.com/GunjanPatel359/burrow-G/internal/agents/copilot"
+	"github.com/GunjanPatel359/burrow-G/internal/agents/freebuff"
 	"github.com/GunjanPatel359/burrow-G/internal/agents/opencode"
 	"github.com/GunjanPatel359/burrow-G/internal/agents/qoder"
 	"github.com/GunjanPatel359/burrow-G/internal/db"
@@ -64,6 +65,7 @@ func main() {
 		opencode.Source{DBPath: filepath.Join(home, ".local", "share", "opencode", "opencode.db"), Run: opencode.Exec},
 		copilot.Source{DBPath: filepath.Join(home, ".copilot", "session-store.db")},
 		codex.Source{Home: filepath.Join(home, ".codex")},
+		freebuff.Source{Home: filepath.Join(home, ".config", "manicode")},
 	}
 
 	store, err := db.Open(filepath.Join(helpers.DataDir(home), "sessions.db"), version)

@@ -4,6 +4,10 @@
 
 ### Added
 
+- Freebuff and Codebuff chats, in one "Freebuff" row. Resume uses `freebuff`. They can be
+  saved to a file and continued elsewhere like any session. "Continue in Freebuff" starts
+  `codebuff`, the only one that takes a first prompt, so it shows only when `codebuff` is
+  installed (#20).
 - Continue a session in another agent: `e` on a session opens a dialog with **Save to file**
   and **Continue in** every agent installed on your `PATH`. Continuing writes a short handoff
   file (the latest summary and the recent conversation) and starts that agent in the session's
@@ -11,8 +15,9 @@
 - Done messages in the status line clear themselves after 2 s, and the key hints stay at the
   right edge.
 - Export a session: press `e` on it, then Save to file. The whole conversation, every tool call with its output,
-  and the compaction summaries go to `~/.local/share/burrow-g/exports/<agent>-<id>.jsonl`, in
-  one format for all five agents (`burrow-session/1`, spec 0003). The file is readable only by
+  and the compaction summaries (only the latest for Freebuff, which keeps no others) go to
+  `~/.local/share/burrow-g/exports/<agent>-<id>.jsonl`, in
+  one format for every agent (`burrow-session/1`, spec 0003). The file is readable only by
   you. OpenCode sessions go through OpenCode's own `session export`; the other agents' files
   are only read.
 
