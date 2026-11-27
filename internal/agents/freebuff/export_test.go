@@ -237,6 +237,30 @@ func TestExport_NullAgentState(t *testing.T) {
 	}
 }
 
+// A summary without sentAt can't be placed, so it is left out and counted,
+// never written first with a 1970 time.
+func TestExport_SummaryWithoutTime(t *testing.T) {
+	home := exportHome(t)
+	path := filepath.Join(home, "projects", "db", "chats", exportID, "run-state.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeFile(t, path, strings.Replace(string(data), `"sentAt":1788174505000,`, "", 1))
+	_, records, end, err := export(t, home, session.Session{ID: exportID, Dir: "/w/db"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, r := range records {
+		if r.Kind == "compaction" {
+			t.Errorf("a summary without a time was written: %+v", r)
+		}
+	}
+	if end.Dropped["compaction summary without a time"] != 1 {
+		t.Errorf("dropped = %v, want the summary counted", end.Dropped)
+	}
+}
+
 // Freebuff tags the summary it writes; a prompt that only quotes the
 // summary markup stays a message.
 func TestExport_QuotedSummaryIsNotACompaction(t *testing.T) {

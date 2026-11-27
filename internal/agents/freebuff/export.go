@@ -62,6 +62,12 @@ func writeMessages(dir string, s session.Session, w *portable.Writer) error {
 	if err != nil {
 		return err
 	}
+	// Without a time the summary can't be put where it happened. Leave it
+	// out: chat-messages.json still has every message it summarizes.
+	if summary != "" && summaryAt.IsZero() {
+		w.Drop("compaction summary without a time")
+		summary = ""
+	}
 	f, err := os.Open(filepath.Join(dir, "chat-messages.json"))
 	if err != nil {
 		return err
@@ -268,7 +274,7 @@ func words(blocks []block) string {
 
 // lastSummary finds the compaction summary in run-state.json, the user
 // message tagged CONVERSATION_SUMMARY that starts the model's history after
-// a compaction, and when it was made.
+// a compaction, and when it was made: zero when it has no sentAt.
 // A chat never compacted has none.
 func lastSummary(path string) (string, time.Time, error) {
 	f, err := os.Open(path)
@@ -300,6 +306,9 @@ func lastSummary(path string) (string, time.Time, error) {
 			continue
 		}
 		if text, ok := summaryText(m.Content); ok {
+			if m.SentAt == 0 {
+				return text, time.Time{}, nil
+			}
 			return text, time.UnixMilli(int64(m.SentAt)).UTC(), nil
 		}
 	}
